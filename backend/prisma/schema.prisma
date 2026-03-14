@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(CUSTOMER)
+  credits   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+
+  @@map("users")
+}
+
+model Product {
+  id             String       @id @default(cuid())
+  name           String
+  description    String?
+  priceInCredits Float
+  imageUrl       String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  licenseKeys    LicenseKey[]
+  orders         Order[]
+
+  @@map("products")
+}
+
+model LicenseKey {
+  id        String    @id @default(cuid())
+  key       String    @unique
+  productId String
+  status    KeyStatus @default(UNUSED)
+  createdAt DateTime  @default(now())
+  product   Product   @relation(fields: [productId], references: [id])
+  order     Order?
+
+  @@map("license_keys")
+}
+
+model Order {
+  id           String     @id @default(cuid())
+  userId       String
+  productId    String
+  licenseKeyId String     @unique
+  creditsCost  Float
+  createdAt    DateTime   @default(now())
+  user         User       @relation(fields: [userId], references: [id])
+  product      Product    @relation(fields: [productId], references: [id])
+  licenseKey   LicenseKey @relation(fields: [licenseKeyId], references: [id])
+
+  @@map("orders")
+}
+
+model CreditLog {
+  id        String          @id @default(cuid())
+  userId    String
+  amount    Float
+  type      CreditLogType
+  note      String?
+  createdAt DateTime        @default(now())
+
+  @@map("credit_logs")
+}
+
+enum Role {
+  ADMIN
+  CUSTOMER
+}
+
+enum KeyStatus {
+  UNUSED
+  SOLD
+}
+
+enum CreditLogType {
+  ADD
+  DEDUCT
+}

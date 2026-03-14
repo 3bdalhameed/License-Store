@@ -1,0 +1,53 @@
+import { Router, Request, Response } from "express";
+import { prisma } from "../lib/prisma";
+
+const router = Router();
+
+// GET /api/products — all active products with available key count
+router.get("/", async (_req: Request, res: Response) => {
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    include: {
+      _count: {
+        select: { licenseKeys: { where: { status: "UNUSED" } } },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  const result = products.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    priceInCredits: p.priceInCredits,
+    imageUrl: p.imageUrl,
+    availableKeys: p._count.licenseKeys,
+  }));
+
+  return res.json(result);
+});
+
+// GET /api/products/:id — single product
+router.get("/:id", async (req: Request, res: Response) => {
+  const product = await prisma.product.findUnique({
+    where: { id: req.params.id, isActive: true },
+    include: {
+      _count: {
+        select: { licenseKeys: { where: { status: "UNUSED" } } },
+      },
+    },
+  });
+
+  if (!product) return res.status(404).json({ error: "Product not found" });
+
+  return res.json({
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    priceInCredits: product.priceInCredits,
+    imageUrl: product.imageUrl,
+    availableKeys: product._count.licenseKeys,
+  });
+});
+
+export default router;

@@ -10,8 +10,6 @@ const getSheetClient = () => {
   return google.sheets({ version: "v4", auth });
 };
 
-// Expected sheet columns: A=key, B=product, C=status
-// Row 1 is the header row and is skipped
 export const syncKeysFromSheet = async (): Promise<{
   imported: number;
   skipped: number;
@@ -29,35 +27,46 @@ export const syncKeysFromSheet = async (): Promise<{
     return { imported: 0, skipped: 0 };
   }
 
+  console.log(`Sheet rows found: ${rows.length}`);
+  console.log("Raw rows:", JSON.stringify(rows));
+
   let imported = 0;
   let skipped = 0;
 
   for (const row of rows) {
-    const [key, productName, status] = row;
+    const key = row[0]?.toString().trim();
+    const productName = row[1]?.toString().trim();
+    const status = row[2]?.toString().trim().toLowerCase();
 
-    if (!key || !productName || status?.toLowerCase() === "sold") {
+    console.log(`Row -> key: "${key}" | product: "${productName}" | status: "${status}"`);
+
+    if (!key || !productName) {
+      console.log("  Skipped: missing key or product name");
       skipped++;
       continue;
     }
 
-    // Check if key already exists in DB
+    if (status === "sold") {
+      console.log("  Skipped: already sold");
+      skipped++;
+      continue;
+    }
+
     const existing = await prisma.licenseKey.findUnique({ where: { key } });
     if (existing) {
+      console.log("  Skipped: key already in DB");
       skipped++;
       continue;
     }
 
-    // Find or create the product
     let product = await prisma.product.findFirst({
       where: { name: { equals: productName, mode: "insensitive" } },
     });
 
     if (!product) {
+      console.log(`  Creating new product: "${productName}"`);
       product = await prisma.product.create({
-        data: {
-          name: productName,
-          priceInCredits: 1, // Default — admin can update in panel
-        },
+        data: { name: productName, priceInCredits: 1 },
       });
     }
 
@@ -65,13 +74,13 @@ export const syncKeysFromSheet = async (): Promise<{
       data: { key, productId: product.id, status: "UNUSED" },
     });
 
+    console.log(`  Imported: "${key}" for "${productName}"`);
     imported++;
   }
 
   return { imported, skipped };
 };
 
-// Mark a key as sold back in Google Sheets (optional but keeps sheet in sync)
 export const markKeyAsSoldInSheet = async (key: string): Promise<void> => {
   try {
     const sheets = getSheetClient();
@@ -85,10 +94,9 @@ export const markKeyAsSoldInSheet = async (key: string): Promise<void> => {
     const rows = response.data.values;
     if (!rows) return;
 
-    const rowIndex = rows.findIndex((r) => r[0] === key);
+    const rowIndex = rows.findIndex((r) => r[0]?.toString().trim() === key);
     if (rowIndex === -1) return;
 
-    // +2 because: 1-indexed + header row offset
     await sheets.spreadsheets.values.update({
       spreadsheetId: sheetId,
       range: `Sheet1!C${rowIndex + 2}`,
@@ -97,6 +105,21 @@ export const markKeyAsSoldInSheet = async (key: string): Promise<void> => {
     });
   } catch (err) {
     console.error("Failed to update sheet:", err);
-    // Non-fatal — DB is the source of truth
   }
+};
+
+// Append new keys to Google Sheet from admin panel
+export const addKeysToSheet = async (keys: string[], productName: string): Promise<void> => {
+  const sheets = getSheetClient();
+  const sheetId = process.env.GOOGLE_SHEET_ID!;
+
+  const rows = keys.map((key) => [key, productName, "unused"]);
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: sheetId,
+    range: "Sheet1!A:C",
+    valueInputOption: "RAW",
+    insertDataOption: "INSERT_ROWS",
+    requestBody: { values: rows },
+  });
 };

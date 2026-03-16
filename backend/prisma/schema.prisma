@@ -8,30 +8,34 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(CUSTOMER)
-  credits   Float    @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  orders    Order[]
+  id           String        @id @default(cuid())
+  email        String        @unique
+  password     String
+  name         String
+  role         Role          @default(CUSTOMER)
+  credits      Float         @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  orders       Order[]
+  manualOrders ManualOrder[]
 
   @@map("users")
 }
 
 model Product {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
   name           String
   description    String?
   priceInCredits Float
   imageUrl       String?
-  isActive       Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  isActive       Boolean       @default(true)
+  isManual       Boolean       @default(false)
+  manualStock    Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
   licenseKeys    LicenseKey[]
   orders         Order[]
+  manualOrders   ManualOrder[]
 
   @@map("products")
 }
@@ -62,13 +66,29 @@ model Order {
   @@map("orders")
 }
 
+model ManualOrder {
+  id            String            @id @default(cuid())
+  userId        String
+  productId     String
+  creditsCost   Float
+  emails        String            // comma-separated activation emails
+  status        ManualOrderStatus @default(PENDING)
+  resultDetails String?           // filled by admin when completed
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  user          User              @relation(fields: [userId], references: [id])
+  product       Product           @relation(fields: [productId], references: [id])
+
+  @@map("manual_orders")
+}
+
 model CreditLog {
-  id        String          @id @default(cuid())
+  id        String        @id @default(cuid())
   userId    String
   amount    Float
   type      CreditLogType
   note      String?
-  createdAt DateTime        @default(now())
+  createdAt DateTime      @default(now())
 
   @@map("credit_logs")
 }
@@ -86,4 +106,10 @@ enum KeyStatus {
 enum CreditLogType {
   ADD
   DEDUCT
+}
+
+enum ManualOrderStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
 }

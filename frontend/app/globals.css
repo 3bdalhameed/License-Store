@@ -1,3 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Syne:wght@700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --primary: #702dff;
+  --primary-light: #a77fff;
+  --primary-dark: #5a20d4;
+  --dark: #090040;
+  --white: #ffffff;
+  --gray-bg: #f5f4ff;
+  --gray-text: #6b7280;
+  --border: #e5e7eb;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Tajawal', 'DM Sans', sans-serif;
+  background: #ffffff;
+  color: #111827;
+  min-height: 100vh;
+}
+
+input::placeholder { color: #9ca3af; }

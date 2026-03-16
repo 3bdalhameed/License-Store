@@ -67,3 +67,29 @@ export const createProduct = (data: {
 export const syncSheets = () => api.post("/api/admin/sync-sheets");
 
 export default api;
+
+export const addKeys = (productId: string, keys: string) =>
+  api.post("/api/admin/keys", { productId, keys });
+
+// ── Manual Orders ─────────────────────────────────────────────────────────────
+export const buyManualProduct = (productId: string, emails: string[]) =>
+  api.post("/api/manual-orders", { productId, emails });
+
+export const getMyManualOrders = () => api.get("/api/manual-orders/my");
+
+export const getAllManualOrders = () => api.get("/api/manual-orders/admin/all");
+
+export const updateManualOrder = (
+  id: string,
+  status: "PENDING" | "IN_PROGRESS" | "COMPLETED",
+  resultDetails?: string
+) => api.patch(`/api/manual-orders/admin/${id}`, { status, resultDetails });
+
+export const toggleManualProduct = (id: string) =>
+  api.patch(`/api/admin/products/${id}/toggle-manual`);
+
+export const updateProductPrice = (id: string, priceInCredits: number) =>
+  api.patch(`/api/admin/products/${id}/price`, { priceInCredits });
+
+export const addManualStock = (id: string, amount: number) =>
+  api.patch(`/api/admin/products/${id}/manual-stock`, { amount });

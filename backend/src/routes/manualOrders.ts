@@ -7,7 +7,7 @@ import {
   sendOrderReceivedEmail,
   sendOrderCompletedEmail,
 } from "../services/email";
-import { sendTelegramMessage } from "../services/telegram";
+import { sendTelegramMessage } from "../services/Telegram";
 
 const router = Router();
 

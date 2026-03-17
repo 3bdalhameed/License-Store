@@ -8,7 +8,7 @@ import { Copy, Check, Loader2, AlertCircle, X, Plus, Minus } from "lucide-react"
 interface User { id: string; name: string; email: string; role: string; credits: number; }
 interface Product { id: string; name: string; description?: string; priceInCredits: number; availableKeys: number; isManual: boolean; }
 interface Order { id: string; createdAt: string; creditsCost: number; product: { name: string }; licenseKey: { key: string }; }
-interface ManualOrder { id: string; createdAt: string; creditsCost: number; emails: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED"; resultDetails?: string; product: { name: string }; }
+interface ManualOrder { id: string; createdAt: string; creditsCost: number; emails: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED"; resultDetails?: string; product: { name: string }; }
 
 const GRADIENTS = [
   "linear-gradient(135deg, #702dff 0%, #a77fff 100%)",
@@ -22,6 +22,7 @@ const STATUS_MAP = {
   PENDING:     { label: "قيد الانتظار",  color: "#d97706", bg: "#fffbeb", border: "#fcd34d" },
   IN_PROGRESS: { label: "جارٍ التنفيذ",  color: "#2563eb", bg: "#eff6ff", border: "#93c5fd" },
   COMPLETED:   { label: "مكتمل",          color: "#16a34a", bg: "#f0fdf4", border: "#86efac" },
+  REJECTED:    { label: "مرفوض",           color: "#dc2626", bg: "#fff5f5", border: "#fecaca" },
 };
 
 export default function DashboardPage() {
@@ -251,6 +252,14 @@ export default function DashboardPage() {
                     {mo.status === "PENDING" && (
                       <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 10, padding: "0.65rem 0.85rem", marginTop: "0.75rem" }}>
                         <p style={{ fontSize: "0.78rem", color: "#92400e", margin: 0 }}>⏳ طلبك قيد المراجعة. سيصلك إشعار فور الانتهاء.</p>
+                      </div>
+                    )}
+                    {/* Rejected notice */}
+                    {mo.status === "REJECTED" && (
+                      <div style={{ background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 10, padding: "0.85rem 1rem", marginTop: "0.75rem" }}>
+                        <p style={{ fontSize: "0.82rem", fontWeight: 700, color: "#dc2626", marginBottom: "0.3rem" }}>❌ تم رفض الطلب</p>
+                        {mo.resultDetails && <p style={{ fontSize: "0.8rem", color: "#374151", margin: 0 }}>السبب: {mo.resultDetails}</p>}
+                        <p style={{ fontSize: "0.78rem", color: "#16a34a", marginTop: "0.4rem", marginBottom: 0 }}>✅ تم إرجاع الرصيد إلى حسابك تلقائياً.</p>
                       </div>
                     )}
                   </div>

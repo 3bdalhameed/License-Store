@@ -81,9 +81,10 @@ export const getAllManualOrders = () => api.get("/api/manual-orders/admin/all");
 
 export const updateManualOrder = (
   id: string,
-  status: "PENDING" | "IN_PROGRESS" | "COMPLETED",
-  resultDetails?: string
-) => api.patch(`/api/manual-orders/admin/${id}`, { status, resultDetails });
+  status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED",
+  resultDetails?: string,
+  rejectReason?: string
+) => api.patch(`/api/manual-orders/admin/${id}`, { status, resultDetails, rejectReason });
 
 export const toggleManualProduct = (id: string) =>
   api.patch(`/api/admin/products/${id}/toggle-manual`);

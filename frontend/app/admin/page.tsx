@@ -9,7 +9,7 @@ import { Users, ShoppingBag, RefreshCw, Plus, Trash2, Loader2, ChevronUp, Chevro
 interface User { id: string; name: string; email: string; credits: number; createdAt: string; }
 interface Order { id: string; createdAt: string; creditsCost: number; user: { name: string; email: string }; product: { name: string }; licenseKey: { key: string }; }
 interface Product { id: string; name: string; description?: string; priceInCredits: number; availableKeys: number; isManual: boolean; }
-interface ManualOrder { id: string; createdAt: string; creditsCost: number; emails: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED"; resultDetails?: string; user: { name: string; email: string }; product: { name: string }; }
+interface ManualOrder { id: string; createdAt: string; creditsCost: number; emails: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED"; resultDetails?: string; user: { name: string; email: string }; product: { name: string }; }
 type Tab = "customers" | "orders" | "products" | "manual";
 
 const card: React.CSSProperties = { background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 16px rgba(112,45,255,0.08)", border: "1px solid rgba(112,45,255,0.1)" };
@@ -18,9 +18,9 @@ const btnP: React.CSSProperties = { display: "flex", alignItems: "center", justi
 const th: React.CSSProperties = { textAlign: "left", padding: "0.85rem 1.25rem", color: "#6b7280", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", borderBottom: "1px solid #f3f4f6", background: "#fafafa" };
 const td: React.CSSProperties = { padding: "0.9rem 1.25rem", borderBottom: "1px solid #f9f9ff", fontSize: "0.875rem", color: "#111827" };
 
-const STATUS_LABELS = { PENDING: "قيد الانتظار", IN_PROGRESS: "جارٍ التنفيذ", COMPLETED: "مكتمل" };
-const STATUS_COLORS = { PENDING: "#d97706", IN_PROGRESS: "#2563eb", COMPLETED: "#16a34a" };
-const STATUS_BG = { PENDING: "#fffbeb", IN_PROGRESS: "#eff6ff", COMPLETED: "#f0fdf4" };
+const STATUS_LABELS = { PENDING: "قيد الانتظار", IN_PROGRESS: "جارٍ التنفيذ", COMPLETED: "مكتمل", REJECTED: "مرفوض" };
+const STATUS_COLORS = { PENDING: "#d97706", IN_PROGRESS: "#2563eb", COMPLETED: "#16a34a", REJECTED: "#dc2626" };
+const STATUS_BG = { PENDING: "#fffbeb", IN_PROGRESS: "#eff6ff", COMPLETED: "#f0fdf4", REJECTED: "#fff5f5" };
 
 export default function AdminPage() {
   const router = useRouter();
@@ -48,6 +48,9 @@ export default function AdminPage() {
   const [completeOrderId, setCompleteOrderId] = useState<string | null>(null);
   const [resultDetails, setResultDetails] = useState("");
   const [completing, setCompleting] = useState(false);
+  const [rejectOrderId, setRejectOrderId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   // Price edit
@@ -178,6 +181,17 @@ export default function AdminPage() {
       setManualOrders((await getAllManualOrders()).data);
     } catch (err: any) { setError(err.response?.data?.error || "فشل"); }
     finally { setCompleting(false); }
+  };
+
+  const handleRejectOrder = async (e: React.FormEvent, orderId: string) => {
+    e.preventDefault();
+    setRejecting(true);
+    try {
+      await updateManualOrder(orderId, "REJECTED", undefined, rejectReason);
+      setRejectOrderId(null); setRejectReason("");
+      setManualOrders((await getAllManualOrders()).data);
+    } catch (err: any) { setError(err.response?.data?.error || "فشل"); }
+    finally { setRejecting(false); }
   };
 
   if (loading) return (
@@ -430,15 +444,20 @@ export default function AdminPage() {
                   </div>
 
                   {/* Status actions */}
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" as const }}>
                     {o.status === "PENDING" && (
                       <button onClick={async e => { await handleCompleteOrder(e, o.id, "IN_PROGRESS"); }} style={{ background: "#eff6ff", border: "1px solid #93c5fd", color: "#2563eb", borderRadius: 8, padding: "0.4rem 0.85rem", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", fontFamily: "Tajawal, sans-serif" }}>
                         بدء التنفيذ
                       </button>
                     )}
-                    {o.status !== "COMPLETED" && (
+                    {o.status !== "COMPLETED" && o.status !== "REJECTED" && (
                       <button onClick={() => setCompleteOrderId(completeOrderId === o.id ? null : o.id)} style={{ ...btnP, padding: "0.4rem 0.85rem", fontSize: "0.75rem" }}>
                         <Check style={{ width: 13, height: 13 }} />تحديد كمكتمل
+                      </button>
+                    )}
+                    {o.status !== "COMPLETED" && o.status !== "REJECTED" && (
+                      <button onClick={() => { setRejectOrderId(rejectOrderId === o.id ? null : o.id); setRejectReason(""); }} style={{ background: "#fff5f5", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 8, padding: "0.4rem 0.85rem", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", fontFamily: "Tajawal, sans-serif" }}>
+                        ✕ رفض الطلب
                       </button>
                     )}
                   </div>
@@ -457,6 +476,21 @@ export default function AdminPage() {
                     <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#16a34a", marginBottom: "0.35rem" }}>✅ تفاصيل التفعيل المُرسلة:</p>
                     <pre style={{ fontSize: "0.82rem", color: "#090040", whiteSpace: "pre-wrap" as const, fontFamily: "inherit", margin: 0, lineHeight: 1.7 }}>{o.resultDetails}</pre>
                   </div>
+                )}
+
+                {/* Reject form */}
+                {rejectOrderId === o.id && (
+                  <form onSubmit={e => handleRejectOrder(e, o.id)} style={{ marginTop: "0.85rem", display: "flex", flexDirection: "column" as const, gap: "0.6rem", background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 12, padding: "1rem" }}>
+                    <label style={{ fontSize: "0.82rem", fontWeight: 700, color: "#dc2626", fontFamily: "Tajawal, sans-serif" }}>سبب الرفض (سيُرسل للعميل + سيُسترجع الرصيد تلقائياً):</label>
+                    <input value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="مثال: المنتج غير متوفر حالياً" style={{ ...inp, border: "1.5px solid #fecaca" }} required />
+                    <div style={{ display: "flex", gap: "0.6rem" }}>
+                      <button type="submit" disabled={rejecting} style={{ ...btnP, background: "#dc2626", boxShadow: "none" }}>
+                        {rejecting ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} /> : null}
+                        {rejecting ? "جاري الرفض..." : "تأكيد الرفض واسترجاع الرصيد"}
+                      </button>
+                      <button type="button" onClick={() => setRejectOrderId(null)} style={{ background: "none", border: "none", color: "#9ca3af", cursor: "pointer", fontFamily: "Tajawal, sans-serif", fontSize: "0.875rem" }}>إلغاء</button>
+                    </div>
+                  </form>
                 )}
 
                 {/* Complete form */}

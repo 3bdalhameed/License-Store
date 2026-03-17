@@ -157,7 +157,7 @@ router.patch(
       if (!order) return res.status(404).json({ error: "Order not found" });
 
       // If rejecting — refund credits to customer
-      if (status === "REJECTED" && order.status !== "REJECTED") {
+      if (status === "REJECTED" && (order.status as any) !== "REJECTED") {
         await prisma.$transaction([
           prisma.user.update({
             where: { id: order.userId },
@@ -174,7 +174,7 @@ router.patch(
         ]);
       }
 
-      const updated = await prisma.manualOrder.update({
+      const updated = await (prisma.manualOrder as any).update({
         where: { id: req.params.id },
         data: {
           status,

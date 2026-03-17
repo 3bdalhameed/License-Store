@@ -6,8 +6,9 @@ import { requireAdmin } from "../middleware/adminOnly";
 import {
   sendOrderReceivedEmail,
   sendOrderCompletedEmail,
+  sendOrderRejectedEmail,
 } from "../services/email";
-import { sendTelegramMessage } from "../services/Telegram";
+import { sendTelegramMessage } from "../services/telegram";
 
 const router = Router();
 
@@ -140,10 +141,11 @@ router.patch(
   async (req: AuthRequest, res: Response) => {
     try {
       const schema = z.object({
-        status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED"]),
+        status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED", "REJECTED"]),
         resultDetails: z.string().optional(),
+        rejectReason: z.string().optional(),
       });
-      const { status, resultDetails } = schema.parse(req.body);
+      const { status, resultDetails, rejectReason } = schema.parse(req.body);
 
       const order = await prisma.manualOrder.findUnique({
         where: { id: req.params.id },
@@ -154,10 +156,48 @@ router.patch(
       });
       if (!order) return res.status(404).json({ error: "Order not found" });
 
+      // If rejecting — refund credits to customer
+      if (status === "REJECTED" && order.status !== "REJECTED") {
+        await prisma.$transaction([
+          prisma.user.update({
+            where: { id: order.userId },
+            data: { credits: { increment: order.creditsCost } },
+          }),
+          prisma.creditLog.create({
+            data: {
+              userId: order.userId,
+              amount: order.creditsCost,
+              type: "ADD",
+              note: `Refund: rejected order for ${order.product.name}`,
+            },
+          }),
+        ]);
+      }
+
       const updated = await prisma.manualOrder.update({
         where: { id: req.params.id },
-        data: { status, resultDetails: resultDetails || order.resultDetails },
+        data: {
+          status,
+          resultDetails: status === "REJECTED"
+            ? (rejectReason || "تم رفض الطلب")
+            : (resultDetails || order.resultDetails),
+        },
       });
+
+      // Send rejection email
+      if (status === "REJECTED") {
+        try {
+          await sendOrderRejectedEmail(
+            order.user.email,
+            order.user.name,
+            order.product.name,
+            rejectReason || "لم يتم ذكر سبب",
+            order.creditsCost
+          );
+        } catch (emailErr) {
+          console.error("Rejection email failed (non-fatal):", emailErr);
+        }
+      }
 
       // Send completion email when marked COMPLETED
       if (status === "COMPLETED" && resultDetails) {

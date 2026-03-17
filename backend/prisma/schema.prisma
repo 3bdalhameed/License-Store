@@ -112,4 +112,5 @@ enum ManualOrderStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
+  REJECTED
 }

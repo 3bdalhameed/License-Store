@@ -8,7 +8,7 @@ import { Users, ShoppingBag, RefreshCw, Plus, Trash2, Loader2, ChevronUp, Chevro
 
 interface User { id: string; name: string; email: string; credits: number; createdAt: string; }
 interface Order { id: string; createdAt: string; creditsCost: number; user: { name: string; email: string }; product: { name: string }; licenseKey: { key: string }; }
-interface Product { id: string; name: string; description?: string; priceInCredits: number; availableKeys: number; isManual: boolean; }
+interface Product { id: string; productNumber?: number; name: string; description?: string; priceInCredits: number; availableKeys: number; isManual: boolean; }
 interface ManualOrder { id: string; createdAt: string; creditsCost: number; emails: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED"; resultDetails?: string; user: { name: string; email: string }; product: { name: string }; }
 type Tab = "customers" | "orders" | "products" | "manual";
 
@@ -274,7 +274,7 @@ export default function AdminPage() {
                       <tr onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#faf9ff"} onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
                         <td style={td}><span style={{ fontWeight: 700 }}>{c.name}</span></td>
                         <td style={{ ...td, color: "#6b7280" }}>{c.email}</td>
-                        <td style={td}><span style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", fontSize: "0.75rem", fontWeight: 700, padding: "0.2rem 0.65rem", borderRadius: 20 }}>{c.credits} رصيد</span></td>
+                        <td style={td}><span style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", fontSize: "0.75rem", fontWeight: 700, padding: "0.2rem 0.65rem", borderRadius: 20 }}>${c.credits} رصيد</span></td>
                         <td style={{ ...td, textAlign: "right" as const }}>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "0.5rem" }}>
                             <button onClick={() => setCreditUserId(creditUserId === c.id ? null : c.id)} style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", borderRadius: 8, padding: "0.35rem 0.75rem", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", fontFamily: "Tajawal, sans-serif" }}>رصيد</button>
@@ -315,7 +315,7 @@ export default function AdminPage() {
                     <td style={td}><div style={{ fontWeight: 700 }}>{o.user.name}</div><div style={{ color: "#9ca3af", fontSize: "0.75rem" }}>{o.user.email}</div></td>
                     <td style={{ ...td, color: "#6b7280" }}>{o.product.name}</td>
                     <td style={td}><code style={{ background: "#f5f4ff", color: "#702dff", padding: "0.2rem 0.5rem", borderRadius: 6, fontSize: "0.75rem" }}>{o.licenseKey.key}</code></td>
-                    <td style={td}><span style={{ color: "#702dff", fontWeight: 700 }}>{o.creditsCost}</span></td>
+                    <td style={td}><span style={{ color: "#702dff", fontWeight: 700 }}>${o.creditsCost}</span></td>
                     <td style={{ ...td, color: "#9ca3af", fontSize: "0.75rem" }}>{new Date(o.createdAt).toLocaleDateString("ar-EG")}</td>
                   </tr>
                 ))}
@@ -349,7 +349,13 @@ export default function AdminPage() {
                   {products.map(p => (
                     <React.Fragment key={p.id}>
                       <tr onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#faf9ff"} onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
-                        <td style={td}><div style={{ fontWeight: 700 }}>{p.name}</div>{p.description && <div style={{ color: "#9ca3af", fontSize: "0.75rem" }}>{p.description}</div>}</td>
+                        <td style={td}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                            {p.productNumber && <span style={{ background: "#f5f4ff", color: "#702dff", fontSize: "0.7rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: 6, border: "1px solid rgba(112,45,255,0.2)", fontFamily: "monospace", flexShrink: 0 }}>#{p.productNumber}</span>}
+                            <div style={{ fontWeight: 700 }}>{p.name}</div>
+                          </div>
+                          {p.description && <div style={{ color: "#9ca3af", fontSize: "0.75rem", marginTop: "0.2rem" }}>{p.description}</div>}
+                        </td>
                         <td style={td}>
                           {editPriceId === p.id ? (
                             <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
@@ -359,7 +365,7 @@ export default function AdminPage() {
                             </div>
                           ) : (
                             <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                              <span style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", fontSize: "0.75rem", fontWeight: 700, padding: "0.2rem 0.65rem", borderRadius: 20 }}>{p.priceInCredits} رصيد</span>
+                              <span style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", fontSize: "0.75rem", fontWeight: 700, padding: "0.2rem 0.65rem", borderRadius: 20 }}>${p.priceInCredits} رصيد</span>
                               <button onClick={() => { setEditPriceId(p.id); setEditPriceVal(String(p.priceInCredits)); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", padding: "0.2rem" }}><Edit2 style={{ width: 12, height: 12 }} /></button>
                             </div>
                           )}

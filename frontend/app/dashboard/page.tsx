@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 import { Copy, Check, Loader2, AlertCircle, X, Plus, Minus } from "lucide-react";
 
 interface User { id: string; name: string; email: string; role: string; credits: number; }
-interface Product { id: string; name: string; description?: string; priceInCredits: number; availableKeys: number; isManual: boolean; }
+interface Product { id: string; productNumber?: number; name: string; description?: string; priceInCredits: number; availableKeys: number; isManual: boolean; }
 interface Order { id: string; createdAt: string; creditsCost: number; product: { name: string }; licenseKey: { key: string }; }
 interface ManualOrder { id: string; createdAt: string; creditsCost: number; emails: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED"; resultDetails?: string; product: { name: string }; }
 
@@ -130,7 +130,7 @@ export default function DashboardPage() {
             مرحباً {user.name.split(" ")[0]} 👋
           </h1>
           <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.9rem" }}>
-            رصيدك: <strong>{user.credits} رصيد</strong> · اكتشف أقوى الاشتراكات الرقمية
+            رصيدك: <strong>${user.credits} رصيد</strong> · اكتشف أقوى الاشتراكات الرقمية
           </p>
         </div>
       </div>
@@ -181,12 +181,15 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <div style={{ padding: "1.1rem 1.25rem 1.25rem" }}>
-                    <h3 style={{ fontFamily: "Tajawal, sans-serif", fontWeight: 800, fontSize: "1rem", color: "#090040", marginBottom: "0.3rem" }}>{p.name}</h3>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.35rem" }}>
+                    {p.productNumber && <span style={{ background: "#f5f4ff", color: "#702dff", fontSize: "0.68rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: 6, border: "1px solid rgba(112,45,255,0.2)", fontFamily: "monospace" }}>#{p.productNumber}</span>}
+                    <h3 style={{ fontFamily: "Tajawal, sans-serif", fontWeight: 800, fontSize: "1rem", color: "#090040", margin: 0 }}>{p.name}</h3>
+                  </div>
                     {p.description && <p style={{ color: "#6b7280", fontSize: "0.8rem", marginBottom: "0.5rem", lineHeight: 1.5 }}>{p.description}</p>}
                     {p.isManual && <p style={{ color: "#702dff", fontSize: "0.78rem", marginBottom: "0.5rem", fontWeight: 600 }}>🔧 يتطلب تفعيلاً من فريقنا</p>}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.85rem" }}>
                       <div style={{ fontFamily: "Tajawal, sans-serif", fontWeight: 900, fontSize: "1.1rem", color: "#702dff" }}>
-                        {p.priceInCredits} <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#a77fff" }}>رصيد</span>
+                        ${p.priceInCredits} <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#a77fff" }}>رصيد</span>
                       </div>
                       <button onClick={() => handleBuy(p)} disabled={!canBuy || buying === p.id} style={{
                         display: "flex", alignItems: "center", gap: "0.35rem",
@@ -225,7 +228,7 @@ export default function DashboardPage() {
                           <span style={{ background: "#f5f4ff", color: "#702dff", fontSize: "0.65rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: 10, border: "1px solid rgba(112,45,255,0.2)" }}>تفعيل يدوي</span>
                         </div>
                         <p style={{ color: "#9ca3af", fontSize: "0.78rem", marginTop: "0.2rem" }}>
-                          {new Date(mo.createdAt).toLocaleDateString("ar-EG")} · <span style={{ color: "#702dff", fontWeight: 700 }}>{mo.creditsCost} رصيد</span>
+                          {new Date(mo.createdAt).toLocaleDateString("ar-EG")} · <span style={{ color: "#702dff", fontWeight: 700 }}>${mo.creditsCost} رصيد</span>
                         </p>
                       </div>
                       <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, fontSize: "0.78rem", fontWeight: 700, padding: "0.3rem 0.85rem", borderRadius: 20, fontFamily: "Tajawal, sans-serif" }}>
@@ -273,7 +276,7 @@ export default function DashboardPage() {
                   <div>
                     <p style={{ fontFamily: "Tajawal, sans-serif", fontWeight: 800, fontSize: "0.95rem", color: "#090040", margin: 0 }}>{ko.product.name}</p>
                     <p style={{ color: "#9ca3af", fontSize: "0.78rem", marginTop: "0.2rem" }}>
-                      {new Date(ko.createdAt).toLocaleDateString("ar-EG")} · <span style={{ color: "#702dff", fontWeight: 700 }}>{ko.creditsCost} رصيد</span>
+                      {new Date(ko.createdAt).toLocaleDateString("ar-EG")} · <span style={{ color: "#702dff", fontWeight: 700 }}>${ko.creditsCost} رصيد</span>
                     </p>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", background: "#f5f4ff", border: "1.5px solid rgba(112,45,255,0.15)", borderRadius: 12, padding: "0.6rem 1rem", flex: "1", maxWidth: 420, minWidth: 200 }}>
@@ -290,7 +293,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Manual buy modal */}
-      {manualModal && (
+      {manualModal && (() => {
+        const totalEmailCost = manualModal.priceInCredits * emailInputs.filter(e => e.trim()).length || manualModal.priceInCredits;
+        return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(9,0,64,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "1rem" }}>
           <div style={{ background: "#fff", borderRadius: 20, padding: "2rem", width: "100%", maxWidth: 480, boxShadow: "0 24px 64px rgba(0,0,0,0.3)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }}>
@@ -338,13 +343,14 @@ export default function DashboardPage() {
             <div style={{ display: "flex", gap: "0.75rem" }}>
               <button onClick={handleManualBuy} disabled={buyingManual} style={{ flex: 1, padding: "0.85rem", background: buyingManual ? "#a77fff" : "linear-gradient(135deg, #702dff, #9044ff)", border: "none", borderRadius: 12, color: "#fff", fontFamily: "Tajawal, sans-serif", fontWeight: 800, fontSize: "0.95rem", cursor: buyingManual ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", boxShadow: "0 4px 20px rgba(112,45,255,0.35)" }}>
                 {buyingManual && <Loader2 style={{ width: 16, height: 16, animation: "spin 1s linear infinite" }} />}
-                {buyingManual ? "جاري الشراء..." : `شراء — ${manualModal.priceInCredits} رصيد`}
+                {buyingManual ? "جاري الشراء..." : `شراء — $${totalEmailCost} رصيد`}
               </button>
               <button onClick={() => setManualModal(null)} style={{ padding: "0.85rem 1.25rem", background: "#f3f4f6", border: "none", borderRadius: 12, color: "#6b7280", fontFamily: "Tajawal, sans-serif", fontWeight: 700, cursor: "pointer" }}>إلغاء</button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} input::placeholder{color:#9ca3af}`}</style>
     </div>

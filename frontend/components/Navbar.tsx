@@ -33,9 +33,26 @@ export default function Navbar({ userName, credits, isAdmin }: NavbarProps) {
     }}>
       {/* Logo - right side (RTL style) */}
       <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexShrink: 0 }}>
-        <img src="/logo.png" alt="logo" style={{ width: 200, height: 150, borderRadius: 10, objectFit: "contain" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+        <img src="/logo.png" alt="logo" style={{ width: 36, height: 36, borderRadius: 10, objectFit: "contain" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
         <div style={{ lineHeight: 1.1 }}>
+          <div style={{ fontFamily: "Syne, sans-serif", fontWeight: 800, fontSize: "1rem", color: "#fff", letterSpacing: "-0.02em" }}>DIGITAL PLU+</div>
+          <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.7)", letterSpacing: "0.05em" }}>ديجيتال بلس</div>
         </div>
+      </div>
+
+      {/* Search bar - center */}
+      <div style={{
+        flex: 1, maxWidth: 480,
+        background: "rgba(255,255,255,0.15)",
+        border: "1.5px solid rgba(255,255,255,0.25)",
+        borderRadius: 24, height: 40,
+        display: "flex", alignItems: "center", gap: "0.6rem",
+        padding: "0 1rem", backdropFilter: "blur(10px)",
+      }}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" strokeLinecap="round">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <span style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.875rem" }}>ابحث عن...</span>
       </div>
 
       {/* Right side actions */}
@@ -52,7 +69,7 @@ export default function Navbar({ userName, credits, isAdmin }: NavbarProps) {
             display: "flex", alignItems: "center", gap: "0.4rem",
           }}>
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />
-            <span style={{ color: "#fff", fontSize: "0.8rem", fontWeight: 700 }}>{credits} رصيد</span>
+            <span style={{ color: "#fff", fontSize: "0.8rem", fontWeight: 700 }}>${credits} رصيد</span>
           </div>
         )}
         <span style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.85rem", fontWeight: 500 }}>{userName}</span>

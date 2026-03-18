@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -24,6 +25,7 @@ model User {
 
 model Product {
   id             String        @id @default(cuid())
+  productNumber  Int           @unique @default(autoincrement())
   name           String
   description    String?
   priceInCredits Float

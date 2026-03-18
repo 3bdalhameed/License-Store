@@ -10,116 +10,175 @@ const getSheetClient = () => {
   return google.sheets({ version: "v4", auth });
 };
 
-export const syncKeysFromSheet = async (): Promise<{
-  imported: number;
-  skipped: number;
-}> => {
+// ── Get or create a sheet tab for a product ───────────────────────────────────
+const getOrCreateProductTab = async (
+  sheets: any,
+  sheetId: string,
+  productName: string,
+  productNumber: number
+): Promise<string> => {
+  const tabName = `#${productNumber} - ${productName}`.slice(0, 100);
+
+  // Get all existing tabs
+  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+  const existingSheets = spreadsheet.data.sheets.map((s: any) => s.properties.title);
+
+  if (!existingSheets.includes(tabName)) {
+    // Create the tab
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: {
+        requests: [{ addSheet: { properties: { title: tabName } } }],
+      },
+    });
+
+    // Add header row
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: `'${tabName}'!A1:C1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [["key", "product", "status"]] },
+    });
+
+    // Style header row (bold + background)
+    const sheetRes = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+    const newSheet = sheetRes.data.sheets.find((s: any) => s.properties.title === tabName);
+    if (newSheet) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody: {
+          requests: [{
+            repeatCell: {
+              range: { sheetId: newSheet.properties.sheetId, startRowIndex: 0, endRowIndex: 1 },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: { red: 0.44, green: 0.18, blue: 1 },
+                  textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
+                },
+              },
+              fields: "userEnteredFormat(backgroundColor,textFormat)",
+            },
+          }],
+        },
+      });
+    }
+  }
+
+  return tabName;
+};
+
+// ── Sync all keys from all product tabs ───────────────────────────────────────
+export const syncKeysFromSheet = async (): Promise<{ imported: number; skipped: number }> => {
   const sheets = getSheetClient();
   const sheetId = process.env.GOOGLE_SHEET_ID!;
 
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: sheetId,
-    range: "Sheet1!A2:C",
-  });
-
-  const rows = response.data.values;
-  if (!rows || rows.length === 0) {
-    return { imported: 0, skipped: 0 };
-  }
-
-  console.log(`Sheet rows found: ${rows.length}`);
-  console.log("Raw rows:", JSON.stringify(rows));
+  // Get all sheet tabs
+  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+  const allTabs = spreadsheet.data.sheets.map((s: any) => s.properties.title) as string[];
 
   let imported = 0;
   let skipped = 0;
 
-  for (const row of rows) {
-    const key = row[0]?.toString().trim();
-    const productName = row[1]?.toString().trim();
-    const status = row[2]?.toString().trim().toLowerCase();
-
-    console.log(`Row -> key: "${key}" | product: "${productName}" | status: "${status}"`);
-
-    if (!key || !productName) {
-      console.log("  Skipped: missing key or product name");
+  for (const tabName of allTabs) {
+    // Skip non-product tabs (must start with #)
+    if (!tabName.startsWith("#")) {
       skipped++;
       continue;
     }
 
-    if (status === "sold") {
-      console.log("  Skipped: already sold");
-      skipped++;
-      continue;
-    }
+    console.log(`📋 Reading tab: "${tabName}"`);
 
-    const existing = await prisma.licenseKey.findUnique({ where: { key } });
-    if (existing) {
-      console.log("  Skipped: key already in DB");
-      skipped++;
-      continue;
-    }
-
-    let product = await prisma.product.findFirst({
-      where: { name: { equals: productName, mode: "insensitive" } },
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: `'${tabName}'!A2:C`,
     });
 
-    if (!product) {
-      console.log(`  Creating new product: "${productName}"`);
-      product = await prisma.product.create({
-        data: { name: productName, priceInCredits: 1 },
+    const rows = response.data.values;
+    if (!rows || rows.length === 0) continue;
+
+    // Extract product name from tab name: "#1000 - Windows 11 Pro" → "Windows 11 Pro"
+    const productName = tabName.replace(/^#\d+ - /, "").trim();
+
+    for (const row of rows) {
+      const key = row[0]?.toString().trim();
+      const status = row[2]?.toString().trim().toLowerCase();
+
+      if (!key || status === "sold") { skipped++; continue; }
+
+      const existing = await prisma.licenseKey.findUnique({ where: { key } });
+      if (existing) { skipped++; continue; }
+
+      let product = await prisma.product.findFirst({
+        where: { name: { equals: productName, mode: "insensitive" } },
       });
+
+      if (!product) {
+        product = await (prisma.product as any).create({
+          data: { name: productName, priceInCredits: 1 },
+        });
+      }
+
+      await prisma.licenseKey.create({
+        data: { key, productId: product.id, status: "UNUSED" },
+      });
+
+      console.log(`  ✓ Imported: "${key}"`);
+      imported++;
     }
-
-    await prisma.licenseKey.create({
-      data: { key, productId: product.id, status: "UNUSED" },
-    });
-
-    console.log(`  Imported: "${key}" for "${productName}"`);
-    imported++;
   }
 
   return { imported, skipped };
 };
 
-export const markKeyAsSoldInSheet = async (key: string): Promise<void> => {
+// ── Add keys to the product's own tab ────────────────────────────────────────
+export const addKeysToSheet = async (keys: string[], productName: string): Promise<void> => {
+  const sheets = getSheetClient();
+  const sheetId = process.env.GOOGLE_SHEET_ID!;
+
+  const product: any = await prisma.product.findFirst({
+    where: { name: { equals: productName, mode: "insensitive" } },
+  });
+
+  const productNumber = product?.productNumber || 1000;
+  const tabName = await getOrCreateProductTab(sheets, sheetId, productName, productNumber);
+
+  const rows = keys.map((key) => [key, productName, "unused"]);
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: sheetId,
+    range: `'${tabName}'!A:C`,
+    valueInputOption: "RAW",
+    insertDataOption: "INSERT_ROWS",
+    requestBody: { values: rows },
+  });
+};
+
+// ── Mark a key as sold in its product tab ────────────────────────────────────
+export const markKeyAsSoldInSheet = async (key: string, productName: string, productNumber: number): Promise<void> => {
   try {
     const sheets = getSheetClient();
     const sheetId = process.env.GOOGLE_SHEET_ID!;
 
+    const tabName = `#${productNumber} - ${productName}`.slice(0, 100);
+
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
-      range: "Sheet1!A2:C",
+      range: `'${tabName}'!A2:C`,
     });
 
     const rows = response.data.values;
     if (!rows) return;
 
-    const rowIndex = rows.findIndex((r) => r[0]?.toString().trim() === key);
+    const rowIndex = rows.findIndex((r: any) => r[0]?.toString().trim() === key);
     if (rowIndex === -1) return;
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: sheetId,
-      range: `Sheet1!C${rowIndex + 2}`,
+      range: `'${tabName}'!C${rowIndex + 2}`,
       valueInputOption: "RAW",
       requestBody: { values: [["sold"]] },
     });
   } catch (err) {
     console.error("Failed to update sheet:", err);
   }
-};
-
-// Append new keys to Google Sheet from admin panel
-export const addKeysToSheet = async (keys: string[], productName: string): Promise<void> => {
-  const sheets = getSheetClient();
-  const sheetId = process.env.GOOGLE_SHEET_ID!;
-
-  const rows = keys.map((key) => [key, productName, "unused"]);
-
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: sheetId,
-    range: "Sheet1!A:C",
-    valueInputOption: "RAW",
-    insertDataOption: "INSERT_ROWS",
-    requestBody: { values: rows },
-  });
 };

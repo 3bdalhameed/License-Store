@@ -32,10 +32,13 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: "لا يوجد مخزون متاح لهذا المنتج" });
     }
 
-    if (user.credits < product.priceInCredits) {
+    // Total cost = price per email × number of emails
+    const totalCost = product.priceInCredits * emails.length;
+
+    if (user.credits < totalCost) {
       return res.status(400).json({
         error: "رصيد غير كافٍ",
-        required: product.priceInCredits,
+        required: totalCost,
         available: user.credits,
       });
     }
@@ -46,7 +49,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
         data: {
           userId: user.id,
           productId: product.id,
-          creditsCost: product.priceInCredits,
+          creditsCost: totalCost,
           emails: emails.join(","),
           status: "PENDING",
         },
@@ -56,14 +59,14 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
       }),
       prisma.user.update({
         where: { id: user.id },
-        data: { credits: { decrement: product.priceInCredits } },
+        data: { credits: { decrement: totalCost } },
       }),
       prisma.creditLog.create({
         data: {
           userId: user.id,
-          amount: -product.priceInCredits,
+          amount: -totalCost,
           type: "DEDUCT",
-          note: `Manual order: ${product.name}`,
+          note: `Manual order (${emails.length} emails): ${product.name}`,
         },
       }),
       (prisma.product as any).update({

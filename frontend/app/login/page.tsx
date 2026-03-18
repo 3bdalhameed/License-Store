@@ -28,11 +28,7 @@ export default function LoginPage() {
     <div style={{ minHeight: "100vh", background: "#f5f4ff", display: "flex", flexDirection: "column" }}>
       {/* Top bar */}
       <div style={{ background: "linear-gradient(135deg, #702dff, #9044ff)", padding: "1rem 2rem", display: "flex", alignItems: "center", gap: "0.6rem" }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-          </svg>
-        </div>
+        <img src="/logo.png" alt="logo" style={{ width: 36, height: 36, borderRadius: 10, objectFit: "contain" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
         <div>
           <div style={{ fontFamily: "Syne, sans-serif", fontWeight: 800, fontSize: "1rem", color: "#fff" }}>DIGITAL PLU+</div>
           <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.7)" }}>ديجيتال بلس</div>

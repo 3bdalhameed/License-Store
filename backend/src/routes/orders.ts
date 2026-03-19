@@ -20,14 +20,18 @@ router.post("/", async (req: AuthRequest, res: Response) => {
     });
     if (!product) return res.status(404).json({ error: "Product not found" });
 
-    // Check credits
-    if (user.credits < product.priceInCredits) {
+    // Check credits — allow balance to go down to -20 (debt limit)
+    const DEBT_LIMIT = -20;
+    const balanceAfter = user.credits - product.priceInCredits;
+    if (balanceAfter < DEBT_LIMIT) {
       return res.status(400).json({
-        error: "Insufficient credits",
+        error: "رصيدك غير كافٍ",
         required: product.priceInCredits,
         available: user.credits,
+        debtLimit: DEBT_LIMIT,
       });
     }
+    const isNegativeBalance = balanceAfter < 0;
 
     // Find an unused key for this product
     const licenseKey = await prisma.licenseKey.findFirst({
@@ -69,7 +73,10 @@ router.post("/", async (req: AuthRequest, res: Response) => {
       }),
     ]);
 
-    return res.status(201).json(order);
+    return res.status(201).json({
+      ...order,
+      warning: isNegativeBalance ? `رصيدك أصبح سلبياً (${balanceAfter.toFixed(1)})، يرجى إعادة الشحن` : null,
+    });
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
     return res.status(500).json({ error: "Server error" });
@@ -84,7 +91,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       product: { select: { name: true, imageUrl: true } },
       licenseKey: { select: { key: true } },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { orderNumber: "desc" },
   });
   return res.json(orders);
 });

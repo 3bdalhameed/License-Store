@@ -34,14 +34,18 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
 
     // Total cost = price per email × number of emails
     const totalCost = product.priceInCredits * emails.length;
+    const DEBT_LIMIT = -20;
+    const balanceAfter = user.credits - totalCost;
 
-    if (user.credits < totalCost) {
+    if (balanceAfter < DEBT_LIMIT) {
       return res.status(400).json({
-        error: "رصيد غير كافٍ",
+        error: "رصيدك غير كافٍ",
         required: totalCost,
         available: user.credits,
+        debtLimit: DEBT_LIMIT,
       });
     }
+    const isNegativeBalance = balanceAfter < 0;
 
     // Atomic: deduct credits + create manual order
     const [manualOrder] = await prisma.$transaction([
@@ -101,7 +105,10 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
       console.error("Telegram notification failed (non-fatal):", telegramErr);
     }
 
-    return res.status(201).json(manualOrder);
+    return res.status(201).json({
+      ...manualOrder,
+      warning: isNegativeBalance ? `رصيدك أصبح سلبياً (${balanceAfter.toFixed(1)})، يرجى إعادة الشحن` : null,
+    });
   } catch (err) {
     if (err instanceof z.ZodError)
       return res.status(400).json({ error: err.errors });

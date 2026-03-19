@@ -18,10 +18,35 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Tajawal', 'DM Sans', sans-serif;
-  background: #ffffff;
+  font-family: 'Tajawal', sans-serif;
+  background: #f5f4ff;
   color: #111827;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-input::placeholder { color: #9ca3af; }
+input::placeholder, textarea::placeholder { color: #9ca3af; }
+
+/* ── Mobile utilities ─────────────────────────────── */
+@media (max-width: 640px) {
+  .hide-mobile { display: none !important; }
+  .mobile-full { width: 100% !important; }
+  .mobile-stack { flex-direction: column !important; }
+  .mobile-p { padding: 1rem !important; }
+  .mobile-text-sm { font-size: 0.8rem !important; }
+}
+
+/* ── Smooth scrolling ─────────────────────────────── */
+html { scroll-behavior: smooth; }
+
+/* ── Remove tap highlight on mobile ──────────────── */
+button, a { -webkit-tap-highlight-color: transparent; }
+
+/* ── Better touch targets ────────────────────────── */
+button { min-height: 40px; }
+
+/* ── Prevent horizontal scroll ───────────────────── */
+body, html { overflow-x: hidden; }
+
+/* ── Table mobile scroll ─────────────────────────── */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }

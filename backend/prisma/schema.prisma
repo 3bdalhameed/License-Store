@@ -56,6 +56,7 @@ model LicenseKey {
 
 model Order {
   id           String     @id @default(cuid())
+  orderNumber  Int        @unique @default(autoincrement())
   userId       String
   productId    String
   licenseKeyId String     @unique
@@ -70,6 +71,7 @@ model Order {
 
 model ManualOrder {
   id            String            @id @default(cuid())
+  orderNumber   Int               @unique @default(autoincrement())
   userId        String
   productId     String
   creditsCost   Float

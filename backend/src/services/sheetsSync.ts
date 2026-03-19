@@ -74,7 +74,7 @@ export const syncKeysFromSheet = async (): Promise<{ imported: number; skipped: 
 
   // Get all sheet tabs
   const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
-  const allTabs = spreadsheet.data.sheets.map((s: any) => s.properties.title) as string[];
+  const allTabs = (spreadsheet.data.sheets ?? []).map((s: any) => s.properties.title) as string[];
 
   let imported = 0;
   let skipped = 0;
@@ -118,6 +118,7 @@ export const syncKeysFromSheet = async (): Promise<{ imported: number; skipped: 
         });
       }
 
+      if (!product) { skipped++; continue; }
       await prisma.licenseKey.create({
         data: { key, productId: product.id, status: "UNUSED" },
       });
@@ -139,7 +140,7 @@ export const addKeysToSheet = async (keys: string[], productName: string): Promi
     where: { name: { equals: productName, mode: "insensitive" } },
   });
 
-  const productNumber = product?.productNumber || 1000;
+  const productNumber = (product as any)?.productNumber ?? 1000;
   const tabName = await getOrCreateProductTab(sheets, sheetId, productName, productNumber);
 
   const rows = keys.map((key) => [key, productName, "unused"]);

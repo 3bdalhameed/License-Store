@@ -109,3 +109,36 @@ export const sendOrderRejectedEmail = async (
     console.error("Failed to send rejection email:", err);
   }
 };
+
+export const sendOrderInProgressEmail = async (
+  to: string,
+  customerName: string,
+  productName: string
+): Promise<void> => {
+  try {
+    await resend.emails.send({
+      from: `ديجيتال بلس <${FROM}>`,
+      to,
+      subject: `🔧 بدأنا العمل على طلبك — ${productName}`,
+      html: `
+        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 2rem; background: #f9f9f9; border-radius: 12px;">
+          <div style="background: linear-gradient(135deg, #702dff, #9044ff); padding: 1.5rem; border-radius: 8px; text-align: center; margin-bottom: 1.5rem;">
+            <h1 style="color: #fff; margin: 0; font-size: 1.4rem;">ديجيتال بلس</h1>
+          </div>
+          <h2 style="color: #090040;">مرحباً ${customerName}،</h2>
+          <p style="color: #374151; line-height: 1.8;">🔧 بدأ فريقنا العمل على تفعيل طلبك:</p>
+          <div style="background: #fff; border: 1px solid rgba(112,45,255,0.2); border-radius: 10px; padding: 1rem 1.5rem; margin: 1rem 0;">
+            <strong style="color: #702dff; font-size: 1.1rem;">📦 ${productName}</strong>
+          </div>
+          <div style="background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 1rem 1.5rem; margin: 1rem 0;">
+            <p style="margin: 0; color: #1e40af;">⏱️ نعمل على طلبك الآن. سيصلك إشعار آخر فور الانتهاء مع تفاصيل التفعيل.</p>
+          </div>
+          <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 2rem; text-align: center;">فريق ديجيتال بلس</p>
+        </div>
+      `,
+    });
+    console.log(`📧 In-progress email sent to ${to}`);
+  } catch (err) {
+    console.error("Failed to send in-progress email:", err);
+  }
+};

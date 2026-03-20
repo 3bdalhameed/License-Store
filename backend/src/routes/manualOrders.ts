@@ -7,6 +7,7 @@ import {
   sendOrderReceivedEmail,
   sendOrderCompletedEmail,
   sendOrderRejectedEmail,
+  sendOrderInProgressEmail,
 } from "../services/email";
 import { sendTelegramMessage } from "../services/Telegram";
 
@@ -206,6 +207,19 @@ router.patch(
           );
         } catch (emailErr) {
           console.error("Rejection email failed (non-fatal):", emailErr);
+        }
+      }
+
+      // Send in-progress email when marked IN_PROGRESS
+      if (status === "IN_PROGRESS") {
+        try {
+          await sendOrderInProgressEmail(
+            order.user.email,
+            order.user.name,
+            order.product.name
+          );
+        } catch (emailErr) {
+          console.error("In-progress email failed (non-fatal):", emailErr);
         }
       }
 

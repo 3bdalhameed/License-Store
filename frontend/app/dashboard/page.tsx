@@ -207,11 +207,13 @@ export default function DashboardPage() {
                       : <span style={{ background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: "0.65rem", fontWeight: 700, padding: "0.15rem 0.6rem", borderRadius: 20 }}>{p.availableKeys > 0 ? `${p.availableKeys} متوفر` : "نفذ"}</span>
                     }
                   </div>
-                  <div style={{ padding: "1rem 1rem" }}>
-                    {p.productNumber && <div style={{ fontFamily: "monospace", fontSize: "0.65rem", color: "#702dff", fontWeight: 700, marginBottom: "0.2rem" }}>#{p.productNumber}</div>}
-                    <div style={{ fontFamily: "Tajawal, sans-serif", fontWeight: 800, fontSize: "0.95rem", color: "#090040", marginBottom: "0.3rem", lineHeight: 1.3 }}>{p.name}</div>
-                    {p.isManual && <div style={{ color: "#702dff", fontSize: "0.7rem", marginBottom: "0.5rem" }}>🔧 تفعيل يدوي</div>}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.5rem" }}>
+                  <div style={{ padding: "1rem 1rem", display: "flex", flexDirection: "column", minHeight: 110 }}>
+                    <div style={{ flex: 1 }}>
+                      {p.productNumber && <div style={{ fontFamily: "monospace", fontSize: "0.65rem", color: "#702dff", fontWeight: 700, marginBottom: "0.2rem" }}>#{p.productNumber}</div>}
+                      <div style={{ fontFamily: "Tajawal, sans-serif", fontWeight: 800, fontSize: "0.95rem", color: "#090040", marginBottom: "0.3rem", lineHeight: 1.3 }}>{p.name}</div>
+                      {p.isManual && <div style={{ color: "#702dff", fontSize: "0.7rem" }}>🔧 تفعيل يدوي</div>}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.75rem" }}>
                       <span style={{ fontWeight: 900, fontSize: "1rem", color: "#702dff" }}>${p.priceInCredits}</span>
                       <button
                         onClick={() => handleBuy(p)}
@@ -230,8 +232,8 @@ export default function DashboardPage() {
                         {!hasStock ? "نفذ" : wouldExceedDebt ? "رصيد غير كافٍ" : "شراء"}
                       </button>
                     </div>
-                  </div>
                 </div>
+              </div>
               );
             })}
           </div>

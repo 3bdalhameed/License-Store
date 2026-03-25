@@ -3,6 +3,12 @@ import { Resend } from "resend";
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
 
+const header = `
+  <div style="background: linear-gradient(135deg, #702dff, #9044ff); padding: 1.5rem; border-radius: 8px; text-align: center; margin-bottom: 1.5rem;">
+    <h1 style="color: #fff; margin: 0; font-size: 1.4rem;">ديجيتال بلس</h1>
+  </div>
+`;
+
 export const sendOrderReceivedEmail = async (
   to: string,
   customerName: string,
@@ -16,9 +22,7 @@ export const sendOrderReceivedEmail = async (
       subject: `✅ تم استلام طلبك — ${productName}`,
       html: `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 2rem; background: #f9f9f9; border-radius: 12px;">
-          <div style="background: linear-gradient(135deg, #702dff, #9044ff); padding: 1.5rem; border-radius: 8px; text-align: center; margin-bottom: 1.5rem;">
-            <h1 style="color: #fff; margin: 0; font-size: 1.4rem;">ديجيتال بلس</h1>
-          </div>
+          ${header}
           <h2 style="color: #090040;">مرحباً ${customerName}،</h2>
           <p style="color: #374151; line-height: 1.8;">تم استلام طلبك بنجاح. فريقنا يعمل الآن على تفعيل:</p>
           <div style="background: #fff; border: 1px solid rgba(112,45,255,0.2); border-radius: 10px; padding: 1rem 1.5rem; margin: 1rem 0;">
@@ -51,9 +55,7 @@ export const sendOrderCompletedEmail = async (
       subject: `🎉 تم تفعيل طلبك — ${productName}`,
       html: `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 2rem; background: #f9f9f9; border-radius: 12px;">
-          <div style="background: linear-gradient(135deg, #702dff, #9044ff); padding: 1.5rem; border-radius: 8px; text-align: center; margin-bottom: 1.5rem;">
-            <h1 style="color: #fff; margin: 0; font-size: 1.4rem;">ديجيتال بلس</h1>
-          </div>
+          ${header}
           <h2 style="color: #090040;">مرحباً ${customerName}،</h2>
           <p style="color: #374151; line-height: 1.8;">🎉 تم تفعيل طلبك بنجاح! إليك تفاصيل التفعيل:</p>
           <div style="background: #fff; border: 2px solid #702dff; border-radius: 10px; padding: 1.25rem 1.5rem; margin: 1rem 0;">
@@ -87,9 +89,7 @@ export const sendOrderRejectedEmail = async (
       subject: `❌ تم رفض طلبك — ${productName}`,
       html: `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 2rem; background: #f9f9f9; border-radius: 12px;">
-          <div style="background: linear-gradient(135deg, #702dff, #9044ff); padding: 1.5rem; border-radius: 8px; text-align: center; margin-bottom: 1.5rem;">
-            <h1 style="color: #fff; margin: 0; font-size: 1.4rem;">ديجيتال بلس</h1>
-          </div>
+          ${header}
           <h2 style="color: #090040;">مرحباً ${customerName}،</h2>
           <p style="color: #374151; line-height: 1.8;">نأسف لإبلاغك بأنه تم رفض طلبك للمنتج:</p>
           <div style="background: #fff; border: 1px solid #fecaca; border-radius: 10px; padding: 1rem 1.5rem; margin: 1rem 0;">
@@ -122,9 +122,7 @@ export const sendOrderInProgressEmail = async (
       subject: `🔧 بدأنا العمل على طلبك — ${productName}`,
       html: `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 2rem; background: #f9f9f9; border-radius: 12px;">
-          <div style="background: linear-gradient(135deg, #702dff, #9044ff); padding: 1.5rem; border-radius: 8px; text-align: center; margin-bottom: 1.5rem;">
-            <h1 style="color: #fff; margin: 0; font-size: 1.4rem;">ديجيتال بلس</h1>
-          </div>
+          ${header}
           <h2 style="color: #090040;">مرحباً ${customerName}،</h2>
           <p style="color: #374151; line-height: 1.8;">🔧 بدأ فريقنا العمل على تفعيل طلبك:</p>
           <div style="background: #fff; border: 1px solid rgba(112,45,255,0.2); border-radius: 10px; padding: 1rem 1.5rem; margin: 1rem 0;">
@@ -140,5 +138,90 @@ export const sendOrderInProgressEmail = async (
     console.log(`📧 In-progress email sent to ${to}`);
   } catch (err) {
     console.error("Failed to send in-progress email:", err);
+  }
+};
+
+export const sendRegistrationApprovedEmail = async (
+  to: string,
+  customerName: string
+): Promise<void> => {
+  try {
+    await resend.emails.send({
+      from: `ديجيتال بلس <${FROM}>`,
+      to,
+      subject: `✅ تم قبول حسابك في ديجيتال بلس`,
+      html: `
+        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 2rem; background: #f9f9f9; border-radius: 12px;">
+          ${header}
+          <h2 style="color: #090040;">مرحباً ${customerName}،</h2>
+          <p style="color: #374151; line-height: 1.8;">يسعدنا إخبارك بأن طلب تسجيلك قد تمت الموافقة عليه!</p>
+          <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 1rem 1.5rem; margin: 1rem 0;">
+            <p style="margin: 0; color: #16a34a; font-size: 1rem;">✅ حسابك الآن نشط. يمكنك تسجيل الدخول والبدء بالتسوق.</p>
+          </div>
+          <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 2rem; text-align: center;">فريق ديجيتال بلس</p>
+        </div>
+      `,
+    });
+    console.log(`📧 Approval email sent to ${to}`);
+  } catch (err) {
+    console.error("Failed to send approval email:", err);
+  }
+};
+
+export const sendRegistrationRejectedEmail = async (
+  to: string,
+  customerName: string,
+  reason?: string
+): Promise<void> => {
+  try {
+    await resend.emails.send({
+      from: `ديجيتال بلس <${FROM}>`,
+      to,
+      subject: `❌ تم رفض طلب التسجيل`,
+      html: `
+        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 2rem; background: #f9f9f9; border-radius: 12px;">
+          ${header}
+          <h2 style="color: #090040;">مرحباً ${customerName}،</h2>
+          <p style="color: #374151; line-height: 1.8;">نأسف لإبلاغك بأنه تم رفض طلب تسجيلك.</p>
+          ${reason ? `<div style="background: #fff5f5; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem 1.5rem; margin: 1rem 0;"><p style="margin: 0; color: #dc2626;">السبب: ${reason}</p></div>` : ""}
+          <p style="color: #6b7280; font-size: 0.9rem;">يمكنك التواصل معنا إذا كان لديك أي استفسار.</p>
+          <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 2rem; text-align: center;">فريق ديجيتال بلس</p>
+        </div>
+      `,
+    });
+    console.log(`📧 Registration rejected email sent to ${to}`);
+  } catch (err) {
+    console.error("Failed to send registration rejected email:", err);
+  }
+};
+
+export const sendPasswordResetEmail = async (
+  to: string,
+  customerName: string,
+  resetLink: string
+): Promise<void> => {
+  try {
+    await resend.emails.send({
+      from: `ديجيتال بلس <${FROM}>`,
+      to,
+      subject: `🔑 إعادة تعيين كلمة المرور`,
+      html: `
+        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 2rem; background: #f9f9f9; border-radius: 12px;">
+          ${header}
+          <h2 style="color: #090040;">مرحباً ${customerName}،</h2>
+          <p style="color: #374151; line-height: 1.8;">تلقينا طلباً لإعادة تعيين كلمة مرور حسابك. اضغط على الزر أدناه للمتابعة:</p>
+          <div style="text-align: center; margin: 1.5rem 0;">
+            <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #702dff, #9044ff); color: #fff; padding: 0.85rem 2rem; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 1rem;">إعادة تعيين كلمة المرور</a>
+          </div>
+          <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 1rem 1.5rem; margin: 1rem 0;">
+            <p style="margin: 0; color: #92400e; font-size: 0.85rem;">⏳ هذا الرابط صالح لمدة ساعة واحدة فقط. إذا لم تطلب إعادة التعيين، تجاهل هذه الرسالة.</p>
+          </div>
+          <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 2rem; text-align: center;">فريق ديجيتال بلس</p>
+        </div>
+      `,
+    });
+    console.log(`📧 Password reset email sent to ${to}`);
+  } catch (err) {
+    console.error("Failed to send password reset email:", err);
   }
 };

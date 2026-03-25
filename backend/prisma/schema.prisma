@@ -13,7 +13,10 @@ model User {
   email        String        @unique
   password     String
   name         String
+  phone        String?
+  storeLink    String?
   role         Role          @default(CUSTOMER)
+  status       UserStatus    @default(ACTIVE)
   credits      Float         @default(0)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -23,21 +26,33 @@ model User {
   @@map("users")
 }
 
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  products  Product[]
+
+  @@map("categories")
+}
+
 model Product {
-  id             String        @id @default(cuid())
-  productNumber  Int           @unique @default(autoincrement())
-  name           String
-  description    String?
-  priceInCredits Float
-  imageUrl       String?
-  isActive       Boolean       @default(true)
-  isManual       Boolean       @default(false)
-  manualStock    Int           @default(0)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  licenseKeys    LicenseKey[]
-  orders         Order[]
-  manualOrders   ManualOrder[]
+  id                     String        @id @default(cuid())
+  productNumber          Int           @unique @default(autoincrement())
+  name                   String
+  description            String?
+  activationInstructions String?
+  categoryId             String?
+  priceInCredits         Float
+  imageUrl               String?
+  isActive               Boolean       @default(true)
+  isManual               Boolean       @default(false)
+  manualStock            Int           @default(0)
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  category               Category?     @relation(fields: [categoryId], references: [id])
+  licenseKeys            LicenseKey[]
+  orders                 Order[]
+  manualOrders           ManualOrder[]
 
   @@map("products")
 }
@@ -55,33 +70,35 @@ model LicenseKey {
 }
 
 model Order {
-  id           String     @id @default(cuid())
-  orderNumber  Int        @unique @default(autoincrement())
-  userId       String
-  productId    String
-  licenseKeyId String     @unique
-  creditsCost  Float
-  createdAt    DateTime   @default(now())
-  user         User       @relation(fields: [userId], references: [id])
-  product      Product    @relation(fields: [productId], references: [id])
-  licenseKey   LicenseKey @relation(fields: [licenseKeyId], references: [id])
+  id                String     @id @default(cuid())
+  orderNumber       Int        @unique @default(autoincrement())
+  globalOrderNumber Int?       @unique
+  userId            String
+  productId         String
+  licenseKeyId      String     @unique
+  creditsCost       Float
+  createdAt         DateTime   @default(now())
+  user              User       @relation(fields: [userId], references: [id])
+  product           Product    @relation(fields: [productId], references: [id])
+  licenseKey        LicenseKey @relation(fields: [licenseKeyId], references: [id])
 
   @@map("orders")
 }
 
 model ManualOrder {
-  id            String            @id @default(cuid())
-  orderNumber   Int               @unique @default(autoincrement())
-  userId        String
-  productId     String
-  creditsCost   Float
-  emails        String            // comma-separated activation emails
-  status        ManualOrderStatus @default(PENDING)
-  resultDetails String?           // filled by admin when completed
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  user          User              @relation(fields: [userId], references: [id])
-  product       Product           @relation(fields: [productId], references: [id])
+  id                String            @id @default(cuid())
+  orderNumber       Int               @unique @default(autoincrement())
+  globalOrderNumber Int?              @unique
+  userId            String
+  productId         String
+  creditsCost       Float
+  emails            String            // comma-separated activation emails
+  status            ManualOrderStatus @default(PENDING)
+  resultDetails     String?           // filled by admin when completed
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  user              User              @relation(fields: [userId], references: [id])
+  product           Product           @relation(fields: [productId], references: [id])
 
   @@map("manual_orders")
 }
@@ -97,9 +114,33 @@ model CreditLog {
   @@map("credit_logs")
 }
 
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_tokens")
+}
+
+model Counter {
+  id    String @id
+  value Int    @default(0)
+
+  @@map("counters")
+}
+
 enum Role {
   ADMIN
   CUSTOMER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  REJECTED
 }
 
 enum KeyStatus {

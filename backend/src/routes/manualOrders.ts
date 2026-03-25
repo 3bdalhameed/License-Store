@@ -48,37 +48,47 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
     }
     const isNegativeBalance = balanceAfter < 0;
 
-    // Atomic: deduct credits + create manual order
-    const [manualOrder] = await prisma.$transaction([
-      prisma.manualOrder.create({
+    // Atomic: deduct credits + create manual order + assign global order number
+    const manualOrder = await prisma.$transaction(async (tx) => {
+      const counter = await tx.counter.upsert({
+        where: { id: "order" },
+        update: { value: { increment: 1 } },
+        create: { id: "order", value: 1 },
+      });
+
+      const order = await tx.manualOrder.create({
         data: {
           userId: user.id,
           productId: product.id,
           creditsCost: totalCost,
           emails: emails.join(","),
           status: "PENDING",
+          globalOrderNumber: counter.value,
         },
         include: {
           product: { select: { name: true } },
         },
-      }),
-      prisma.user.update({
+      });
+
+      await tx.user.update({
         where: { id: user.id },
         data: { credits: { decrement: totalCost } },
-      }),
-      prisma.creditLog.create({
+      });
+      await tx.creditLog.create({
         data: {
           userId: user.id,
           amount: -totalCost,
           type: "DEDUCT",
           note: `Manual order (${emails.length} emails): ${product.name}`,
         },
-      }),
-      (prisma.product as any).update({
+      });
+      await (tx.product as any).update({
         where: { id: product.id },
         data: { manualStock: { decrement: 1 } },
-      }),
-    ]);
+      });
+
+      return order;
+    });
 
     // Send confirmation email to the customer account email
     try {
@@ -112,7 +122,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
     });
   } catch (err) {
     if (err instanceof z.ZodError)
-      return res.status(400).json({ error: err.errors });
+      return res.status(400).json({ error: err.errors[0]?.message || "بيانات غير صحيحة" });
     return res.status(500).json({ error: "Server error" });
   }
 });
@@ -240,7 +250,7 @@ router.patch(
       return res.json(updated);
     } catch (err) {
       if (err instanceof z.ZodError)
-        return res.status(400).json({ error: err.errors });
+        return res.status(400).json({ error: err.errors[0]?.message || "بيانات غير صحيحة" });
       return res.status(500).json({ error: "Server error" });
     }
   }

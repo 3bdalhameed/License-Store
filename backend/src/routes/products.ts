@@ -7,19 +7,25 @@ router.get("/", async (_req: Request, res: Response) => {
   const products = await prisma.product.findMany({
     where: { isActive: true },
     include: {
-      _count: { select: { licenseKeys: { where: { status: "UNUSED" } } } },
+      _count: { select: { licenseKeys: { where: { status: "UNUSED" } }, orders: true } },
+      category: { select: { id: true, name: true } },
     },
     orderBy: { name: "asc" },
   });
 
   const result = products.map((p: any) => ({
     id: p.id,
+    productNumber: p.productNumber,
     name: p.name,
     description: p.description,
+    activationInstructions: p.activationInstructions,
     priceInCredits: p.priceInCredits,
     imageUrl: p.imageUrl,
     isManual: p.isManual ?? false,
     availableKeys: p.isManual ? (p.manualStock ?? 0) : p._count.licenseKeys,
+    totalSold: p.isManual ? null : p._count.orders,
+    categoryId: p.categoryId ?? null,
+    categoryName: p.category?.name ?? null,
   }));
 
   return res.json(result);

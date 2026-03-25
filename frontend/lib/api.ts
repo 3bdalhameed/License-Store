@@ -27,18 +27,39 @@ api.interceptors.response.use(
 export const login = (email: string, password: string) =>
   api.post("/api/auth/login", { email, password });
 
+export const register = (name: string, email: string, password: string, phone?: string, storeLink?: string) =>
+  api.post("/api/auth/register", { name, email, password, phone, storeLink });
+
 export const getMe = () => api.get("/api/auth/me");
+
+export const forgotPassword = (email: string) =>
+  api.post("/api/auth/forgot-password", { email });
+
+export const resetPassword = (token: string, password: string) =>
+  api.post("/api/auth/reset-password", { token, password });
 
 // ── Products ─────────────────────────────────────────────────────────────────
 export const getProducts = () => api.get("/api/products");
 
 // ── Orders ───────────────────────────────────────────────────────────────────
-export const buyProduct = (productId: string) =>
-  api.post("/api/orders", { productId });
+export const buyProduct = (productId: string, quantity = 1) =>
+  api.post("/api/orders", { productId, quantity });
 
 export const getMyOrders = () => api.get("/api/orders");
 
+export const getMyCreditLogs = () => api.get("/api/orders/my-credits");
+
 // ── Admin ────────────────────────────────────────────────────────────────────
+export const getAdminStats = () => api.get("/api/admin/stats");
+
+export const getPendingRegistrations = () => api.get("/api/admin/pending-registrations");
+
+export const approveRegistration = (id: string) =>
+  api.post(`/api/admin/pending-registrations/${id}/approve`);
+
+export const rejectRegistration = (id: string, reason?: string) =>
+  api.post(`/api/admin/pending-registrations/${id}/reject`, { reason });
+
 export const getCustomers = () => api.get("/api/admin/customers");
 
 export const createCustomer = (data: {
@@ -63,6 +84,9 @@ export const createProduct = (data: {
   description?: string;
   priceInCredits: number;
 }) => api.post("/api/admin/products", data);
+
+export const updateProductInstructions = (id: string, activationInstructions: string) =>
+  api.patch(`/api/admin/products/${id}/instructions`, { activationInstructions });
 
 export const syncSheets = () => api.post("/api/admin/sync-sheets");
 
@@ -94,3 +118,15 @@ export const updateProductPrice = (id: string, priceInCredits: number) =>
 
 export const addManualStock = (id: string, amount: number) =>
   api.patch(`/api/admin/products/${id}/manual-stock`, { amount });
+
+// ── Categories ─────────────────────────────────────────────────────────────────
+export const getCategories = () => api.get("/api/admin/categories");
+
+export const createCategory = (name: string) =>
+  api.post("/api/admin/categories", { name });
+
+export const deleteCategory = (id: string) =>
+  api.delete(`/api/admin/categories/${id}`);
+
+export const updateProductCategory = (id: string, categoryId: string | null) =>
+  api.patch(`/api/admin/products/${id}/category`, { categoryId });

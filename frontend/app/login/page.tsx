@@ -90,6 +90,10 @@ export default function LoginPage() {
               {loading ? "جاري الدخول..." : "تسجيل الدخول"}
             </button>
           </form>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1.25rem", fontSize: "0.875rem" }}>
+            <a href="/forgot-password" style={{ color: "#702dff", fontWeight: 600, textDecoration: "none" }}>نسيت كلمة المرور؟</a>
+            <a href="/register" style={{ color: "#702dff", fontWeight: 600, textDecoration: "none" }}>إنشاء حساب جديد</a>
+          </div>
         </div>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

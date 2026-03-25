@@ -2,15 +2,27 @@
 import React from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getMe, getCustomers, createCustomer, deleteCustomer, adjustCredits, getAllOrders, syncSheets, createProduct, getProducts, addKeys, getAllManualOrders, updateManualOrder, toggleManualProduct, updateProductPrice, addManualStock } from "@/lib/api";
+import {
+  getMe, getCustomers, createCustomer, deleteCustomer, adjustCredits, getAllOrders,
+  syncSheets, createProduct, getProducts, addKeys, getAllManualOrders, updateManualOrder,
+  toggleManualProduct, updateProductPrice, addManualStock, getAdminStats,
+  getPendingRegistrations, approveRegistration, rejectRegistration, updateProductInstructions,
+  getCategories, createCategory, deleteCategory, updateProductCategory,
+} from "@/lib/api";
 import Navbar from "@/components/Navbar";
-import { Users, ShoppingBag, RefreshCw, Plus, Trash2, Loader2, ChevronUp, ChevronDown, Package, AlertCircle, Check, KeyRound, Zap, Clock, Edit2 } from "lucide-react";
+import {
+  Users, ShoppingBag, RefreshCw, Plus, Trash2, Loader2, ChevronUp, ChevronDown,
+  Package, AlertCircle, Check, KeyRound, Zap, Clock, Edit2, BarChart2, UserCheck, FileText, Tag,
+} from "lucide-react";
 
 interface User { id: string; name: string; email: string; credits: number; createdAt: string; }
-interface Order { id: string; orderNumber?: number; createdAt: string; creditsCost: number; user: { name: string; email: string }; product: { name: string }; licenseKey: { key: string }; }
-interface Product { id: string; productNumber?: number; name: string; description?: string; priceInCredits: number; availableKeys: number; isManual: boolean; }
-interface ManualOrder { id: string; orderNumber?: number; createdAt: string; creditsCost: number; emails: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED"; resultDetails?: string; user: { name: string; email: string }; product: { name: string }; }
-type Tab = "customers" | "orders" | "products" | "manual";
+interface PendingUser { id: string; name: string; email: string; phone?: string; storeLink?: string; createdAt: string; }
+interface Order { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; user: { name: string; email: string }; product: { name: string }; licenseKey: { key: string }; }
+interface Product { id: string; productNumber?: number; name: string; description?: string; activationInstructions?: string; priceInCredits: number; availableKeys: number; totalSold?: number | null; isManual: boolean; categoryId?: string | null; categoryName?: string | null; }
+interface ManualOrder { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; emails: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED"; resultDetails?: string; user: { name: string; email: string }; product: { name: string }; }
+interface Stats { totalCustomers: number; totalOrders: number; pendingManualOrders: number; totalProducts: number; totalRevenue: number; }
+interface Category { id: string; name: string; _count: { products: number }; }
+type Tab = "stats" | "customers" | "registrations" | "orders" | "products" | "manual" | "categories";
 
 const card: React.CSSProperties = { background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 16px rgba(112,45,255,0.08)", border: "1px solid rgba(112,45,255,0.1)" };
 const inp: React.CSSProperties = { width: "100%", padding: "0.75rem 0.9rem", background: "#f9f9ff", border: "1.5px solid #e5e7eb", borderRadius: 10, color: "#111", fontSize: "0.9rem", outline: "none", fontFamily: "Tajawal, sans-serif" };
@@ -20,14 +32,20 @@ const STATUS_LABELS: Record<string, string> = { PENDING: "قيد الانتظا�
 const STATUS_COLORS: Record<string, string> = { PENDING: "#d97706", IN_PROGRESS: "#2563eb", COMPLETED: "#16a34a", REJECTED: "#dc2626" };
 const STATUS_BG: Record<string, string> = { PENDING: "#fffbeb", IN_PROGRESS: "#eff6ff", COMPLETED: "#f0fdf4", REJECTED: "#fff5f5" };
 
+function orderNum(o: { orderNumber?: number; globalOrderNumber?: number }) {
+  return o.globalOrderNumber ?? o.orderNumber;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [admin, setAdmin] = useState<any>(null);
-  const [tab, setTab] = useState<Tab>("customers");
+  const [tab, setTab] = useState<Tab>("stats");
   const [customers, setCustomers] = useState<User[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [manualOrders, setManualOrders] = useState<ManualOrder[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
@@ -48,6 +66,13 @@ export default function AdminPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [editPriceId, setEditPriceId] = useState<string | null>(null); const [editPriceVal, setEditPriceVal] = useState("");
   const [manualStockId, setManualStockId] = useState<string | null>(null); const [manualStockVal, setManualStockVal] = useState(""); const [addingStock, setAddingStock] = useState(false); const [stockMsg, setStockMsg] = useState<string | null>(null);
+  const [editInstructionsId, setEditInstructionsId] = useState<string | null>(null); const [instructionsVal, setInstructionsVal] = useState(""); const [savingInstructions, setSavingInstructions] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [rejectRegId, setRejectRegId] = useState<string | null>(null); const [rejectRegReason, setRejectRegReason] = useState("");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [newCategoryName, setNewCategoryName] = useState(""); const [creatingCategory, setCreatingCategory] = useState(false); const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [editCategoryId, setEditCategoryId] = useState<string | null>(null); const [editCategoryVal, setEditCategoryVal] = useState<string>("");
+  const [savingCategory, setSavingCategory] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -60,8 +85,16 @@ export default function AdminPage() {
       const meRes = await getMe();
       if (meRes.data.role !== "ADMIN") { router.push("/dashboard"); return; }
       setAdmin(meRes.data);
-      const [custRes, ordersRes, productsRes, manualRes] = await Promise.all([getCustomers(), getAllOrders(), getProducts(), getAllManualOrders()]);
-      setCustomers(custRes.data); setOrders(ordersRes.data); setProducts(productsRes.data); setManualOrders(manualRes.data);
+      const [custRes, ordersRes, productsRes, manualRes, statsRes, pendingRes, categoriesRes] = await Promise.all([
+        getCustomers(), getAllOrders(), getProducts(), getAllManualOrders(), getAdminStats(), getPendingRegistrations(), getCategories(),
+      ]);
+      setCustomers(custRes.data);
+      setOrders(ordersRes.data);
+      setProducts(productsRes.data);
+      setManualOrders(manualRes.data);
+      setStats(statsRes.data);
+      setPendingUsers(pendingRes.data);
+      setCategories(categoriesRes.data);
     } catch { router.push("/login"); }
     finally { setLoading(false); }
   };
@@ -147,8 +180,18 @@ export default function AdminPage() {
       setStockMsg(`تمت إضافة ${amount}`); setManualStockVal("");
       setProducts((await getProducts()).data);
       setTimeout(() => { setStockMsg(null); setManualStockId(null); }, 3000);
-    } catch (err: any) { setStockMsg("خطأ"); }
+    } catch { setStockMsg("خطأ"); }
     finally { setAddingStock(false); }
+  };
+
+  const handleSaveInstructions = async (id: string) => {
+    setSavingInstructions(true);
+    try {
+      await updateProductInstructions(id, instructionsVal);
+      setEditInstructionsId(null); setInstructionsVal("");
+      setProducts((await getProducts()).data);
+    } catch (err: any) { setError(err.response?.data?.error || "فشل"); }
+    finally { setSavingInstructions(false); }
   };
 
   const handleCompleteOrder = async (e: React.FormEvent, orderId: string, newStatus: "PENDING" | "IN_PROGRESS" | "COMPLETED") => {
@@ -171,6 +214,50 @@ export default function AdminPage() {
     finally { setRejecting(false); }
   };
 
+  const handleApproveRegistration = async (id: string) => {
+    setApprovingId(id);
+    try {
+      await approveRegistration(id);
+      setPendingUsers(prev => prev.filter(u => u.id !== id));
+      setCustomers((await getCustomers()).data);
+      setStats((await getAdminStats()).data);
+    } catch (err: any) { setError(err.response?.data?.error || "فشل"); }
+    finally { setApprovingId(null); }
+  };
+
+  const handleRejectRegistration = async (e: React.FormEvent, id: string) => {
+    e.preventDefault(); setRejecting(true);
+    try {
+      await rejectRegistration(id, rejectRegReason || undefined);
+      setRejectRegId(null); setRejectRegReason("");
+      setPendingUsers(prev => prev.filter(u => u.id !== id));
+    } catch (err: any) { setError(err.response?.data?.error || "فشل"); }
+    finally { setRejecting(false); }
+  };
+
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault(); setCreatingCategory(true); setCategoryError(null);
+    try {
+      await createCategory(newCategoryName.trim());
+      setNewCategoryName("");
+      setCategories((await getCategories()).data);
+    } catch (err: any) { setCategoryError(err.response?.data?.error || "فشل"); }
+    finally { setCreatingCategory(false); }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm("حذف هذه الفئة؟ سيتم إلغاء ربطها بالمنتجات.")) return;
+    try { await deleteCategory(id); setCategories((await getCategories()).data); setProducts((await getProducts()).data); }
+    catch (err: any) { setError(err.response?.data?.error || "فشل"); }
+  };
+
+  const handleAssignCategory = async (productId: string, categoryId: string | null) => {
+    setSavingCategory(true);
+    try { await updateProductCategory(productId, categoryId); setProducts((await getProducts()).data); setEditCategoryId(null); }
+    catch (err: any) { setError(err.response?.data?.error || "فشل"); }
+    finally { setSavingCategory(false); }
+  };
+
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#f5f4ff", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <Loader2 style={{ width: 28, height: 28, color: "#702dff", animation: "spin 1s linear infinite" }} />
@@ -179,10 +266,13 @@ export default function AdminPage() {
   );
 
   const pendingCount = manualOrders.filter(o => o.status !== "COMPLETED" && o.status !== "REJECTED").length;
-  const tabs = [
+  const tabs: { key: Tab; label: string; icon: any }[] = [
+    { key: "stats", label: "الإحصائيات", icon: BarChart2 },
     { key: "customers", label: "العملاء", icon: Users },
+    { key: "registrations", label: pendingUsers.length > 0 ? `تسجيلات (${pendingUsers.length})` : "تسجيلات", icon: UserCheck },
     { key: "orders", label: "الطلبات", icon: ShoppingBag },
     { key: "products", label: "المنتجات", icon: Package },
+    { key: "categories", label: "الفئات", icon: Tag },
     { key: "manual", label: pendingCount > 0 ? `تفعيل (${pendingCount})` : "تفعيل", icon: Zap },
   ];
 
@@ -196,8 +286,9 @@ export default function AdminPage() {
           <div>
             <h1 style={{ fontFamily: "Tajawal, sans-serif", fontSize: "clamp(1.1rem, 4vw, 1.5rem)", fontWeight: 900, color: "#fff", margin: 0 }}>لوحة الإدارة</h1>
             <p style={{ color: "rgba(255,255,255,0.75)", fontSize: "0.78rem", marginTop: "0.2rem" }}>
-              {customers.length} عميل · {orders.length} طلب
+              {stats?.totalCustomers ?? customers.length} عميل · {stats?.totalOrders ?? orders.length} طلب
               {pendingCount > 0 && <span style={{ background: "#fcd34d", color: "#92400e", fontSize: "0.7rem", fontWeight: 700, padding: "0.1rem 0.4rem", borderRadius: 10, marginRight: "0.4rem" }}>⚡ {pendingCount} معلق</span>}
+              {pendingUsers.length > 0 && <span style={{ background: "#bfdbfe", color: "#1e40af", fontSize: "0.7rem", fontWeight: 700, padding: "0.1rem 0.4rem", borderRadius: 10, marginRight: "0.4rem" }}>👤 {pendingUsers.length} تسجيل جديد</span>}
             </p>
           </div>
           <button onClick={handleSync} disabled={syncing} style={{ ...btnP, background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,255,255,0.35)", boxShadow: "none", padding: "0.6rem 1rem", fontSize: "0.8rem" }}>
@@ -215,20 +306,206 @@ export default function AdminPage() {
         </div>}
 
         {/* ── Desktop tab bar ── */}
-        <div id="desktop-tabs" style={{ display: "none", gap: "0", marginBottom: "1.25rem", borderBottom: "2px solid #ede9fe" }}>
+        <div id="desktop-tabs" style={{ display: "none", gap: "0", marginBottom: "1.25rem", borderBottom: "2px solid #ede9fe", overflowX: "auto" }}>
           {tabs.map(({ key, label, icon: Icon }) => (
-            <button key={key} onClick={() => setTab(key as Tab)} style={{
+            <button key={key} onClick={() => setTab(key)} style={{
               display: "flex", alignItems: "center", gap: "0.5rem",
-              padding: "0.65rem 1.25rem", border: "none", background: "none", cursor: "pointer",
-              fontFamily: "Tajawal, sans-serif", fontWeight: 700, fontSize: "0.9rem",
+              padding: "0.65rem 1.1rem", border: "none", background: "none", cursor: "pointer",
+              fontFamily: "Tajawal, sans-serif", fontWeight: 700, fontSize: "0.875rem",
               color: tab === key ? "#702dff" : "#6b7280",
               borderBottom: tab === key ? "2.5px solid #702dff" : "2.5px solid transparent",
-              marginBottom: "-2px", transition: "color 0.2s",
+              marginBottom: "-2px", transition: "color 0.2s", whiteSpace: "nowrap" as const,
             }}>
-              <Icon style={{ width: 16, height: 16 }} />{label}
+              <Icon style={{ width: 15, height: 15 }} />{label}
             </button>
           ))}
         </div>
+
+        {/* ── Stats ── */}
+        {tab === "stats" && stats && (() => {
+          const avgOrder = stats.totalOrders > 0 ? (stats.totalRevenue / stats.totalOrders).toFixed(2) : "0.00";
+          const lowStockProducts = products.filter(p => !p.isManual && p.availableKeys <= 3);
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+
+              {/* ── Revenue hero ── */}
+              <div style={{ background: "linear-gradient(135deg, #702dff 0%, #9044ff 100%)", borderRadius: 20, padding: "1.5rem 1.4rem", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.07)", top: -70, right: -55, pointerEvents: "none" }} />
+                <div style={{ position: "absolute", width: 140, height: 140, borderRadius: "50%", background: "rgba(255,255,255,0.05)", bottom: -50, left: -35, pointerEvents: "none" }} />
+                <div style={{ position: "relative", zIndex: 1 }}>
+                  <div style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.65)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.35rem", fontFamily: "Tajawal, sans-serif" }}>إجمالي الإيرادات</div>
+                  <div style={{ fontSize: "clamp(2rem,6vw,2.8rem)", fontWeight: 900, color: "#fff", fontFamily: "monospace", lineHeight: 1, letterSpacing: "-0.02em" }}>
+                    ${stats.totalRevenue.toFixed(2)}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "0.85rem", flexWrap: "wrap" as const }}>
+                    <div style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)", borderRadius: 10, padding: "0.35rem 0.75rem", border: "1px solid rgba(255,255,255,0.2)" }}>
+                      <span style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.7)", fontFamily: "Tajawal, sans-serif" }}>متوسط الطلب </span>
+                      <span style={{ fontSize: "0.85rem", color: "#fff", fontWeight: 800, fontFamily: "monospace" }}>${avgOrder}</span>
+                    </div>
+                    <div style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)", borderRadius: 10, padding: "0.35rem 0.75rem", border: "1px solid rgba(255,255,255,0.2)" }}>
+                      <span style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.7)", fontFamily: "Tajawal, sans-serif" }}>الطلبات </span>
+                      <span style={{ fontSize: "0.85rem", color: "#fff", fontWeight: 800, fontFamily: "monospace" }}>{stats.totalOrders}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── 4 KPI cards ── */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                {([
+                  { label: "العملاء", value: stats.totalCustomers, Icon: Users, color: "#702dff", bg: "#f5f4ff", border: "rgba(112,45,255,0.18)" },
+                  { label: "الطلبات الكلية", value: stats.totalOrders, Icon: ShoppingBag, color: "#0ea5e9", bg: "#f0f9ff", border: "rgba(14,165,233,0.2)" },
+                  { label: "المنتجات", value: stats.totalProducts, Icon: Package, color: "#16a34a", bg: "#f0fdf4", border: "rgba(22,163,74,0.2)" },
+                  { label: "معلقة يدوية", value: stats.pendingManualOrders, Icon: Clock, color: "#d97706", bg: "#fffbeb", border: "rgba(217,119,6,0.2)" },
+                ] as const).map(({ label, value, Icon, color, bg, border }) => (
+                  <div key={label} style={{ background: "#fff", borderRadius: 18, padding: "1.1rem 1rem", boxShadow: "0 2px 14px rgba(112,45,255,0.07)", border: "1px solid rgba(112,45,255,0.08)", display: "flex", flexDirection: "column" as const, gap: "0.6rem" }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: bg, border: `1.5px solid ${border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Icon style={{ width: 18, height: 18, color }} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 900, fontSize: "1.65rem", color: "#090040", fontFamily: "monospace", lineHeight: 1 }}>{value}</div>
+                      <div style={{ fontSize: "0.75rem", color: "#9ca3af", marginTop: "0.25rem", fontFamily: "Tajawal, sans-serif" }}>{label}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Action alerts ── */}
+              {(pendingUsers.length > 0 || stats.pendingManualOrders > 0 || lowStockProducts.length > 0) && (
+                <div style={{ display: "flex", flexDirection: "column" as const, gap: "0.55rem" }}>
+                  {pendingUsers.length > 0 && (
+                    <div style={{ background: "#eff6ff", border: "1.5px solid #93c5fd", borderRadius: 14, padding: "0.85rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                        <div style={{ width: 34, height: 34, borderRadius: 10, background: "#dbeafe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <UserCheck style={{ width: 16, height: 16, color: "#2563eb" }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "0.85rem", color: "#1e3a5f", fontWeight: 800, fontFamily: "Tajawal, sans-serif" }}>{pendingUsers.length} تسجيل جديد</div>
+                          <div style={{ fontSize: "0.7rem", color: "#60a5fa" }}>بانتظار الموافقة</div>
+                        </div>
+                      </div>
+                      <button onClick={() => setTab("registrations")} style={{ background: "#2563eb", border: "none", borderRadius: 10, padding: "0.4rem 0.85rem", color: "#fff", fontSize: "0.76rem", fontWeight: 700, cursor: "pointer", fontFamily: "Tajawal, sans-serif", flexShrink: 0 }}>مراجعة</button>
+                    </div>
+                  )}
+                  {stats.pendingManualOrders > 0 && (
+                    <div style={{ background: "#fffbeb", border: "1.5px solid #fcd34d", borderRadius: 14, padding: "0.85rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                        <div style={{ width: 34, height: 34, borderRadius: 10, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Zap style={{ width: 16, height: 16, color: "#d97706" }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "0.85rem", color: "#78350f", fontWeight: 800, fontFamily: "Tajawal, sans-serif" }}>{stats.pendingManualOrders} طلب تفعيل</div>
+                          <div style={{ fontSize: "0.7rem", color: "#f59e0b" }}>يدوي معلق</div>
+                        </div>
+                      </div>
+                      <button onClick={() => setTab("manual")} style={{ background: "#d97706", border: "none", borderRadius: 10, padding: "0.4rem 0.85rem", color: "#fff", fontSize: "0.76rem", fontWeight: 700, cursor: "pointer", fontFamily: "Tajawal, sans-serif", flexShrink: 0 }}>معالجة</button>
+                    </div>
+                  )}
+                  {lowStockProducts.length > 0 && (
+                    <div style={{ background: "#fff5f5", border: "1.5px solid #fecaca", borderRadius: 14, padding: "0.85rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                        <div style={{ width: 34, height: 34, borderRadius: 10, background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <AlertCircle style={{ width: 16, height: 16, color: "#dc2626" }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "0.85rem", color: "#7f1d1d", fontWeight: 800, fontFamily: "Tajawal, sans-serif" }}>{lowStockProducts.length} منتج مخزونه منخفض</div>
+                          <div style={{ fontSize: "0.7rem", color: "#f87171" }}>{lowStockProducts.map(p => p.name).join("، ")}</div>
+                        </div>
+                      </div>
+                      <button onClick={() => setTab("products")} style={{ background: "#dc2626", border: "none", borderRadius: 10, padding: "0.4rem 0.85rem", color: "#fff", fontSize: "0.76rem", fontWeight: 700, cursor: "pointer", fontFamily: "Tajawal, sans-serif", flexShrink: 0 }}>إضافة</button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Breakdown card ── */}
+              <div style={{ ...card, padding: "1.1rem 1.25rem" }}>
+                <div style={{ fontWeight: 800, fontSize: "0.9rem", color: "#090040", marginBottom: "1rem", fontFamily: "Tajawal, sans-serif" }}>تفاصيل إضافية</div>
+                <div style={{ display: "flex", flexDirection: "column" as const, gap: "0" }}>
+                  {[
+                    { label: "عملاء نشطون", value: stats.totalCustomers, color: "#702dff", max: Math.max(stats.totalCustomers, 1) },
+                    { label: "إجمالي الطلبات", value: stats.totalOrders, color: "#0ea5e9", max: Math.max(stats.totalOrders, 1) },
+                    { label: "تسجيلات معلقة", value: pendingUsers.length, color: "#2563eb", max: Math.max(pendingUsers.length, stats.totalCustomers, 1) },
+                    { label: "طلبات يدوية معلقة", value: stats.pendingManualOrders, color: "#d97706", max: Math.max(stats.pendingManualOrders, stats.totalOrders, 1) },
+                  ].map(({ label, value, color, max }, idx, arr) => (
+                    <div key={label} style={{ paddingTop: idx === 0 ? 0 : "0.7rem", paddingBottom: "0.7rem", borderBottom: idx < arr.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
+                        <span style={{ fontSize: "0.82rem", color: "#6b7280", fontFamily: "Tajawal, sans-serif" }}>{label}</span>
+                        <strong style={{ fontSize: "0.9rem", color: "#090040", fontFamily: "monospace" }}>{value}</strong>
+                      </div>
+                      <div style={{ height: 5, borderRadius: 99, background: "#f3f4f6", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${Math.round((value / max) * 100)}%`, background: color, borderRadius: 99, transition: "width 0.6s ease" }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          );
+        })()}
+
+        {/* ── Pending Registrations ── */}
+        {tab === "registrations" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {pendingUsers.length === 0 && (
+              <div style={{ ...card, padding: "2rem", textAlign: "center", color: "#9ca3af" }}>
+                <UserCheck style={{ width: 32, height: 32, margin: "0 auto 0.5rem", opacity: 0.3 }} />
+                <p>لا توجد طلبات تسجيل معلقة</p>
+              </div>
+            )}
+            {pendingUsers.map(u => (
+              <div key={u.id} style={{ ...card, padding: "1rem" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.5rem" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#090040" }}>{u.name}</div>
+                    <div style={{ color: "#6b7280", fontSize: "0.78rem", marginTop: "0.15rem", wordBreak: "break-all" as const }}>{u.email}</div>
+                    {u.phone && (
+                      <div style={{ fontSize: "0.78rem", color: "#374151", marginTop: "0.15rem", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                        <span style={{ color: "#25D366" }}>📱</span>
+                        <a href={`https://wa.me/${u.phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ color: "#16a34a", fontWeight: 600, textDecoration: "none", fontFamily: "monospace" }}>{u.phone}</a>
+                      </div>
+                    )}
+                    {u.storeLink && (
+                      <div style={{ fontSize: "0.75rem", marginTop: "0.15rem" }}>
+                        <a href={u.storeLink} target="_blank" rel="noopener noreferrer" style={{ color: "#702dff", fontWeight: 600, textDecoration: "none", wordBreak: "break-all" as const }}>🔗 {u.storeLink}</a>
+                      </div>
+                    )}
+                    <div style={{ fontSize: "0.72rem", color: "#9ca3af", marginTop: "0.2rem" }}>{new Date(u.createdAt).toLocaleDateString("ar-EG")}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
+                    <button
+                      onClick={() => handleApproveRegistration(u.id)}
+                      disabled={approvingId === u.id}
+                      style={{ background: "#f0fdf4", border: "1px solid #86efac", color: "#16a34a", borderRadius: 8, padding: "0.4rem 0.75rem", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", fontFamily: "Tajawal, sans-serif", display: "flex", alignItems: "center", gap: "0.3rem" }}
+                    >
+                      {approvingId === u.id ? <Loader2 style={{ width: 12, height: 12, animation: "spin 1s linear infinite" }} /> : <Check style={{ width: 12, height: 12 }} />}
+                      قبول
+                    </button>
+                    <button
+                      onClick={() => setRejectRegId(rejectRegId === u.id ? null : u.id)}
+                      style={{ background: "#fff5f5", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 8, padding: "0.4rem 0.75rem", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", fontFamily: "Tajawal, sans-serif" }}
+                    >
+                      رفض
+                    </button>
+                  </div>
+                </div>
+                {rejectRegId === u.id && (
+                  <form onSubmit={e => handleRejectRegistration(e, u.id)} style={{ display: "flex", flexDirection: "column" as const, gap: "0.5rem", marginTop: "0.75rem", padding: "0.75rem", background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 10 }}>
+                    <input value={rejectRegReason} onChange={e => setRejectRegReason(e.target.value)} placeholder="سبب الرفض (اختياري)" style={{ ...inp, border: "1.5px solid #fecaca" }} />
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button type="submit" disabled={rejecting} style={{ ...btnP, background: "#dc2626", boxShadow: "none", flex: 1, padding: "0.6rem" }}>
+                        {rejecting ? <Loader2 style={{ width: 13, height: 13, animation: "spin 1s linear infinite" }} /> : null}
+                        تأكيد الرفض
+                      </button>
+                      <button type="button" onClick={() => setRejectRegId(null)} style={{ background: "#f3f4f6", border: "none", borderRadius: 10, padding: "0.6rem 1rem", cursor: "pointer", color: "#6b7280", fontFamily: "Tajawal, sans-serif" }}>إلغاء</button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* ── Customers ── */}
         {tab === "customers" && (
@@ -248,7 +525,6 @@ export default function AdminPage() {
               )}
             </div>
 
-            {/* Customer cards — mobile friendly */}
             {customers.length === 0 && <div style={{ ...card, padding: "2rem", textAlign: "center", color: "#9ca3af" }}>لا يوجد عملاء بعد</div>}
             {customers.map(c => (
               <React.Fragment key={c.id}>
@@ -256,7 +532,7 @@ export default function AdminPage() {
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#090040" }}>{c.name}</div>
-                      <div style={{ color: "#6b7280", fontSize: "0.78rem", marginTop: "0.15rem", wordBreak: "break-all" }}>{c.email}</div>
+                      <div style={{ color: "#6b7280", fontSize: "0.78rem", marginTop: "0.15rem", wordBreak: "break-all" as const }}>{c.email}</div>
                       <span style={{ display: "inline-block", marginTop: "0.4rem", background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", fontSize: "0.75rem", fontWeight: 700, padding: "0.2rem 0.65rem", borderRadius: 20 }}>${c.credits} رصيد</span>
                     </div>
                     <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0, marginRight: "0.5rem" }}>
@@ -289,13 +565,13 @@ export default function AdminPage() {
               <div key={o.id} style={{ ...card, padding: "1rem" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                    {o.orderNumber && <span style={{ fontFamily: "monospace", fontSize: "0.68rem", color: "#702dff", fontWeight: 700, background: "#f5f4ff", padding: "0.15rem 0.4rem", borderRadius: 5, border: "1px solid rgba(112,45,255,0.2)" }}>#{o.orderNumber}</span>}
+                    {orderNum(o) && <span style={{ fontFamily: "monospace", fontSize: "0.68rem", color: "#702dff", fontWeight: 700, background: "#f5f4ff", padding: "0.15rem 0.4rem", borderRadius: 5, border: "1px solid rgba(112,45,255,0.2)" }}>#{orderNum(o)}</span>}
                     <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "#090040" }}>{o.product.name}</span>
                   </div>
                   <span style={{ color: "#702dff", fontWeight: 700, fontSize: "0.85rem" }}>${o.creditsCost}</span>
                 </div>
                 <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.5rem" }}>{o.user.name} · {new Date(o.createdAt).toLocaleDateString("ar-EG")}</div>
-                <code style={{ display: "block", background: "#f5f4ff", color: "#702dff", padding: "0.5rem 0.75rem", borderRadius: 8, fontSize: "0.78rem", wordBreak: "break-all" }}>{o.licenseKey.key}</code>
+                <code style={{ display: "block", background: "#f5f4ff", color: "#702dff", padding: "0.5rem 0.75rem", borderRadius: 8, fontSize: "0.78rem", wordBreak: "break-all" as const }}>{o.licenseKey.key}</code>
               </div>
             ))}
           </div>
@@ -327,13 +603,13 @@ export default function AdminPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
                         {p.productNumber && <span style={{ fontFamily: "monospace", fontSize: "0.65rem", color: "#702dff", fontWeight: 700, background: "#f5f4ff", padding: "0.1rem 0.35rem", borderRadius: 5, border: "1px solid rgba(112,45,255,0.2)" }}>#{p.productNumber}</span>}
-                        <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#090040" }}>{p.name}</span>
+                        <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#090040" }}>{p.isManual ? "📦" : "🔑"} {p.name}</span>
                       </div>
                       {p.description && <div style={{ color: "#9ca3af", fontSize: "0.75rem", marginTop: "0.15rem" }}>{p.description}</div>}
                     </div>
                     <button onClick={() => handleToggleManual(p.id)} disabled={togglingId === p.id} style={{ background: p.isManual ? "#f5f4ff" : "#f3f4f6", border: `1px solid ${p.isManual ? "rgba(112,45,255,0.3)" : "#e5e7eb"}`, color: p.isManual ? "#702dff" : "#6b7280", borderRadius: 20, padding: "0.25rem 0.65rem", fontSize: "0.7rem", fontWeight: 700, cursor: "pointer", flexShrink: 0, marginRight: "0.5rem", display: "flex", alignItems: "center", gap: "0.3rem" }}>
                       {togglingId === p.id ? <Loader2 style={{ width: 11, height: 11, animation: "spin 1s linear infinite" }} /> : <Zap style={{ width: 11, height: 11 }} />}
-                      {p.isManual ? "يدوي" : "عادي"}
+                      {p.isManual ? "يدوي" : "تلقائي"}
                     </button>
                   </div>
 
@@ -350,7 +626,10 @@ export default function AdminPage() {
                         <button onClick={() => { setEditPriceId(p.id); setEditPriceVal(String(p.priceInCredits)); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", padding: "0.2rem" }}><Edit2 style={{ width: 12, height: 12 }} /></button>
                       </div>
                     )}
-                    <span style={{ fontWeight: 700, fontSize: "0.82rem", color: p.availableKeys > 0 ? "#16a34a" : "#dc2626" }}>{p.availableKeys} مفاتيح</span>
+                    <span style={{ fontWeight: 700, fontSize: "0.82rem", color: p.availableKeys > 0 ? "#16a34a" : "#dc2626" }}>{p.availableKeys} {p.isManual ? "مخزون" : "مفاتيح"}</span>
+                    {!p.isManual && p.totalSold != null && (
+                      <span style={{ fontWeight: 700, fontSize: "0.82rem", color: "#2563eb" }}>{p.totalSold} مبيعة</span>
+                    )}
 
                     {p.isManual ? (
                       <button onClick={() => { setManualStockId(manualStockId === p.id ? null : p.id); setManualStockVal(""); setStockMsg(null); }} style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", borderRadius: 8, padding: "0.35rem 0.7rem", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "0.3rem" }}>
@@ -361,7 +640,52 @@ export default function AdminPage() {
                         <KeyRound style={{ width: 12, height: 12 }} />مفاتيح
                       </button>
                     )}
+
+                    {/* Instructions button */}
+                    <button onClick={() => { setEditInstructionsId(editInstructionsId === p.id ? null : p.id); setInstructionsVal(p.activationInstructions || ""); }} style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", borderRadius: 8, padding: "0.35rem 0.7rem", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                      <FileText style={{ width: 12, height: 12 }} />تعليمات
+                    </button>
+                    {/* Category button */}
+                    <button onClick={() => { setEditCategoryId(editCategoryId === p.id ? null : p.id); setEditCategoryVal(p.categoryId || ""); }} style={{ background: p.categoryId ? "#f0fdf4" : "#f5f4ff", border: `1px solid ${p.categoryId ? "#86efac" : "rgba(112,45,255,0.2)"}`, color: p.categoryId ? "#16a34a" : "#702dff", borderRadius: 8, padding: "0.35rem 0.7rem", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                      <Tag style={{ width: 12, height: 12 }} />{p.categoryName || "فئة"}
+                    </button>
                   </div>
+
+                  {editInstructionsId === p.id && (
+                    <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column" as const, gap: "0.5rem" }}>
+                      <textarea
+                        value={instructionsVal}
+                        onChange={e => setInstructionsVal(e.target.value)}
+                        placeholder="تعليمات التفعيل التي ستظهر للعملاء..."
+                        rows={4}
+                        style={{ ...inp, resize: "none" as const }}
+                      />
+                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <button onClick={() => handleSaveInstructions(p.id)} disabled={savingInstructions} style={{ ...btnP, flex: 1 }}>
+                          {savingInstructions ? <Loader2 style={{ width: 13, height: 13, animation: "spin 1s linear infinite" }} /> : <Check style={{ width: 13, height: 13 }} />}
+                          {savingInstructions ? "جاري الحفظ..." : "حفظ التعليمات"}
+                        </button>
+                        <button onClick={() => setEditInstructionsId(null)} style={{ background: "#f3f4f6", border: "none", borderRadius: 10, padding: "0.65rem 1rem", cursor: "pointer", color: "#6b7280", fontFamily: "Tajawal, sans-serif" }}>إلغاء</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {editCategoryId === p.id && (
+                    <div style={{ marginTop: "0.75rem", display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" as const, background: "#f5f4ff", padding: "0.75rem", borderRadius: 10 }}>
+                      <select
+                        value={editCategoryVal}
+                        onChange={e => setEditCategoryVal(e.target.value)}
+                        style={{ ...inp, flex: 1 }}
+                      >
+                        <option value="">-- بدون فئة --</option>
+                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                      <button onClick={() => handleAssignCategory(p.id, editCategoryVal || null)} disabled={savingCategory} style={{ ...btnP, padding: "0.6rem 1rem" }}>
+                        {savingCategory ? <Loader2 style={{ width: 13, height: 13, animation: "spin 1s linear infinite" }} /> : <Check style={{ width: 13, height: 13 }} />}حفظ
+                      </button>
+                      <button onClick={() => setEditCategoryId(null)} style={{ background: "none", border: "none", color: "#9ca3af", cursor: "pointer" }}>إلغاء</button>
+                    </div>
+                  )}
 
                   {manualStockId === p.id && (
                     <form onSubmit={e => handleAddManualStock(e, p.id)} style={{ marginTop: "0.75rem", display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" as const, background: "#f5f4ff", padding: "0.75rem", borderRadius: 10 }}>
@@ -388,6 +712,40 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ── Categories ── */}
+        {tab === "categories" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {categoryError && (
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "#fff5f5", border: "1px solid #fecaca", color: "#dc2626", padding: "0.75rem 1rem", borderRadius: 12, fontSize: "0.85rem" }}>
+                <AlertCircle style={{ width: 14, height: 14 }} />{categoryError}
+                <button onClick={() => setCategoryError(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: "1rem" }}>×</button>
+              </div>
+            )}
+            <div style={card}>
+              <form onSubmit={handleCreateCategory} style={{ display: "flex", gap: "0.5rem", padding: "1rem", alignItems: "center" }}>
+                <input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="اسم الفئة الجديدة" required style={{ ...inp, flex: 1 }} />
+                <button type="submit" disabled={creatingCategory} style={{ ...btnP, padding: "0.65rem 1rem", flexShrink: 0 }}>
+                  {creatingCategory ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} /> : <Plus style={{ width: 14, height: 14 }} />}
+                  إضافة
+                </button>
+              </form>
+            </div>
+            {categories.length === 0 && <div style={{ ...card, padding: "2rem", textAlign: "center", color: "#9ca3af" }}>لا توجد فئات بعد</div>}
+            {categories.map(c => (
+              <div key={c.id} style={{ ...card, padding: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <Tag style={{ width: 16, height: 16, color: "#702dff" }} />
+                  <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#090040" }}>{c.name}</span>
+                  <span style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", fontSize: "0.72rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: 20 }}>{c._count.products} منتج</span>
+                </div>
+                <button onClick={() => handleDeleteCategory(c.id)} style={{ background: "#fff5f5", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer" }}>
+                  <Trash2 style={{ width: 14, height: 14 }} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* ── Manual Orders ── */}
         {tab === "manual" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -402,7 +760,7 @@ export default function AdminPage() {
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "0.5rem", gap: "0.5rem" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" as const }}>
-                      {o.orderNumber && <span style={{ fontFamily: "monospace", fontSize: "0.68rem", color: "#702dff", fontWeight: 700, background: "#f5f4ff", padding: "0.15rem 0.4rem", borderRadius: 5, border: "1px solid rgba(112,45,255,0.2)" }}>#{o.orderNumber}</span>}
+                      {orderNum(o) && <span style={{ fontFamily: "monospace", fontSize: "0.68rem", color: "#702dff", fontWeight: 700, background: "#f5f4ff", padding: "0.15rem 0.4rem", borderRadius: 5, border: "1px solid rgba(112,45,255,0.2)" }}>#{orderNum(o)}</span>}
                       <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "#090040" }}>{o.product.name}</span>
                       <span style={{ background: STATUS_BG[o.status], color: STATUS_COLORS[o.status], fontSize: "0.68rem", fontWeight: 700, padding: "0.15rem 0.55rem", borderRadius: 20 }}>{STATUS_LABELS[o.status]}</span>
                     </div>
@@ -466,15 +824,15 @@ export default function AdminPage() {
       {/* ── Mobile bottom tab bar ── */}
       <div id="mobile-tabs" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 40, background: "#fff", borderTop: "1px solid #f0eeff", alignItems: "center", boxShadow: "0 -2px 16px rgba(112,45,255,0.08)", height: 60, display: "none" }}>
         {tabs.map(({ key, label, icon: Icon }) => (
-          <button key={key} onClick={() => setTab(key as Tab)} style={{
+          <button key={key} onClick={() => setTab(key)} style={{
             flex: 1, display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center",
-            gap: "0.2rem", height: "100%", border: "none", background: "none", cursor: "pointer",
+            gap: "0.15rem", height: "100%", border: "none", background: "none", cursor: "pointer",
             color: tab === key ? "#702dff" : "#c4b5fd",
             borderTop: tab === key ? "2px solid #702dff" : "2px solid transparent",
             transition: "all 0.15s",
           }}>
-            <Icon style={{ width: 20, height: 20, strokeWidth: tab === key ? 2.5 : 1.75 }} />
-            <span style={{ fontSize: "0.66rem", fontWeight: tab === key ? 700 : 500, fontFamily: "Tajawal, sans-serif" }}>{label}</span>
+            <Icon style={{ width: 18, height: 18, strokeWidth: tab === key ? 2.5 : 1.75 }} />
+            <span style={{ fontSize: "0.58rem", fontWeight: tab === key ? 700 : 500, fontFamily: "Tajawal, sans-serif" }}>{label.split(" ")[0]}</span>
           </button>
         ))}
       </div>
@@ -492,7 +850,6 @@ export default function AdminPage() {
           #mobile-tabs { display: flex !important; }
         }
       `}</style>
-
     </div>
   );
 }

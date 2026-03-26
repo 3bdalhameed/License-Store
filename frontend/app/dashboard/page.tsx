@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 import { Copy, Check, Loader2, AlertCircle, X, Plus, Minus, ShoppingBag, ClipboardList, History } from "lucide-react";
 
 interface User { id: string; name: string; email: string; role: string; credits: number; }
-interface Product { id: string; productNumber?: number; name: string; description?: string; activationInstructions?: string; priceInCredits: number; availableKeys: number; isManual: boolean; requiresEmail?: boolean; categoryId?: string | null; categoryName?: string | null; }
+interface Product { id: string; productNumber?: number; name: string; description?: string; activationInstructions?: string; priceInCredits: number; availableKeys: number; isManual: boolean; requiresEmail?: boolean; categoryId?: string | null; categoryName?: string | null; categorySortOrder?: number; }
 interface Order { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; product: { name: string }; licenseKey: { key: string }; }
 interface ManualOrder { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; emails: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED"; resultDetails?: string; product: { name: string }; }
 interface CreditLog { id: string; amount: number; type: "ADD" | "DEDUCT"; note?: string; createdAt: string; }
@@ -257,7 +257,9 @@ export default function DashboardPage() {
           const filteredProducts = searchTrimmed
             ? products.filter(p => p.name.toLowerCase().includes(searchTrimmed) || p.description?.toLowerCase().includes(searchTrimmed))
             : null;
-          const categories = Array.from(new Set(products.map(p => p.categoryName).filter(Boolean))) as string[];
+          const categoryMap = new Map<string, number>();
+          products.forEach(p => { if (p.categoryName && !categoryMap.has(p.categoryName)) categoryMap.set(p.categoryName, p.categorySortOrder ?? 999); });
+          const categories = Array.from(categoryMap.entries()).sort((a, b) => a[1] - b[1]).map(([name]) => name);
           const uncategorized = products.filter(p => !p.categoryName);
 
           const renderProductCard = (p: Product, i: number) => {

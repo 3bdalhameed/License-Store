@@ -8,7 +8,7 @@ router.get("/", async (_req: Request, res: Response) => {
     where: { isActive: true },
     include: {
       _count: { select: { licenseKeys: { where: { status: "UNUSED" } }, orders: true } },
-      category: { select: { id: true, name: true } },
+      category: { select: { id: true, name: true, sortOrder: true } },
     },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
@@ -27,6 +27,7 @@ router.get("/", async (_req: Request, res: Response) => {
     totalSold: p.isManual ? null : p._count.orders,
     categoryId: p.categoryId ?? null,
     categoryName: p.category?.name ?? null,
+    categorySortOrder: p.category?.sortOrder ?? 999,
   }));
 
   return res.json(result);

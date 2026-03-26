@@ -77,6 +77,9 @@ export const createCustomer = (data: {
 export const deleteCustomer = (id: string) =>
   api.delete(`/api/admin/customers/${id}`);
 
+export const updateCustomer = (id: string, data: { name?: string; email?: string; password?: string }) =>
+  api.patch(`/api/admin/customers/${id}`, data);
+
 export const adjustCredits = (userId: string, amount: number, note?: string) =>
   api.post("/api/admin/credits", { userId, amount, note });
 
@@ -139,3 +142,15 @@ export const deleteCategory = (id: string) =>
 
 export const updateProductCategory = (id: string, categoryId: string | null) =>
   api.patch(`/api/admin/products/${id}/category`, { categoryId });
+
+export const reorderCategories = (items: { id: string; sortOrder: number }[]) =>
+  api.put("/api/admin/categories/reorder", items);
+
+export const toggleRequiresEmail = (id: string) =>
+  api.patch(`/api/admin/products/${id}/toggle-requires-email`);
+
+export const updateProduct = (id: string, data: { name?: string; description?: string }) =>
+  api.patch(`/api/admin/products/${id}`, data);
+
+export const deleteProduct = (id: string) =>
+  api.delete(`/api/admin/products/${id}`);

@@ -22,6 +22,7 @@ router.get("/", async (_req: Request, res: Response) => {
     priceInCredits: p.priceInCredits,
     imageUrl: p.imageUrl,
     isManual: p.isManual ?? false,
+    requiresEmail: p.requiresEmail ?? true,
     availableKeys: p.isManual ? (p.manualStock ?? 0) : p._count.licenseKeys,
     totalSold: p.isManual ? null : p._count.orders,
     categoryId: p.categoryId ?? null,

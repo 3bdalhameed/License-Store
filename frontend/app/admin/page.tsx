@@ -8,6 +8,7 @@ import {
   toggleManualProduct, updateProductPrice, addManualStock, getAdminStats,
   getPendingRegistrations, approveRegistration, rejectRegistration, updateProductInstructions,
   getCategories, createCategory, deleteCategory, updateProductCategory, reorderProducts,
+  reorderCategories, toggleRequiresEmail, updateProduct, deleteProduct, updateCustomer,
 } from "@/lib/api";
 import Navbar from "@/components/Navbar";
 import {
@@ -18,10 +19,10 @@ import {
 interface User { id: string; name: string; email: string; credits: number; createdAt: string; }
 interface PendingUser { id: string; name: string; email: string; phone?: string; storeLink?: string; createdAt: string; }
 interface Order { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; user: { name: string; email: string }; product: { name: string }; licenseKey: { key: string }; }
-interface Product { id: string; productNumber?: number; name: string; description?: string; activationInstructions?: string; priceInCredits: number; availableKeys: number; totalSold?: number | null; isManual: boolean; categoryId?: string | null; categoryName?: string | null; }
+interface Product { id: string; productNumber?: number; name: string; description?: string; activationInstructions?: string; priceInCredits: number; availableKeys: number; totalSold?: number | null; isManual: boolean; requiresEmail: boolean; categoryId?: string | null; categoryName?: string | null; }
 interface ManualOrder { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; emails: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED"; resultDetails?: string; user: { name: string; email: string }; product: { name: string }; }
 interface Stats { totalCustomers: number; totalOrders: number; pendingManualOrders: number; totalProducts: number; totalRevenue: number; }
-interface Category { id: string; name: string; _count: { products: number }; }
+interface Category { id: string; name: string; sortOrder?: number; _count: { products: number }; }
 type Tab = "stats" | "customers" | "registrations" | "orders" | "products" | "manual" | "categories";
 
 const card: React.CSSProperties = { background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 16px rgba(112,45,255,0.08)", border: "1px solid rgba(112,45,255,0.1)" };
@@ -59,11 +60,13 @@ export default function AdminPage() {
   const [keysInput, setKeysInput] = useState(""); const [addingKeys, setAddingKeys] = useState(false); const [keysMsg, setKeysMsg] = useState<string | null>(null);
   const [creditUserId, setCreditUserId] = useState<string | null>(null);
   const [creditAmount, setCreditAmount] = useState(""); const [creditNote, setCreditNote] = useState(""); const [adjusting, setAdjusting] = useState(false);
+  const [editCustomerId, setEditCustomerId] = useState<string | null>(null); const [editCustomerName, setEditCustomerName] = useState(""); const [editCustomerEmail, setEditCustomerEmail] = useState(""); const [editCustomerPassword, setEditCustomerPassword] = useState(""); const [savingCustomer, setSavingCustomer] = useState(false); const [editCustomerError, setEditCustomerError] = useState<string | null>(null);
   const [completeOrderId, setCompleteOrderId] = useState<string | null>(null);
   const [resultDetails, setResultDetails] = useState(""); const [completing, setCompleting] = useState(false);
   const [rejectOrderId, setRejectOrderId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState(""); const [rejecting, setRejecting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [togglingRequiresEmailId, setTogglingRequiresEmailId] = useState<string | null>(null);
   const [editPriceId, setEditPriceId] = useState<string | null>(null); const [editPriceVal, setEditPriceVal] = useState("");
   const [manualStockId, setManualStockId] = useState<string | null>(null); const [manualStockVal, setManualStockVal] = useState(""); const [addingStock, setAddingStock] = useState(false); const [stockMsg, setStockMsg] = useState<string | null>(null);
   const [editInstructionsId, setEditInstructionsId] = useState<string | null>(null); const [instructionsVal, setInstructionsVal] = useState(""); const [savingInstructions, setSavingInstructions] = useState(false);
@@ -73,6 +76,8 @@ export default function AdminPage() {
   const [newCategoryName, setNewCategoryName] = useState(""); const [creatingCategory, setCreatingCategory] = useState(false); const [categoryError, setCategoryError] = useState<string | null>(null);
   const [editCategoryId, setEditCategoryId] = useState<string | null>(null); const [editCategoryVal, setEditCategoryVal] = useState<string>("");
   const [savingCategory, setSavingCategory] = useState(false);
+  const [editProductId, setEditProductId] = useState<string | null>(null); const [editProductName, setEditProductName] = useState(""); const [editProductDesc, setEditProductDesc] = useState(""); const [savingProduct, setSavingProduct] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
 
   type StatsPeriod = "all" | "today" | "week" | "month" | "year";
   const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>("all");
@@ -99,6 +104,45 @@ export default function AdminPage() {
     const withOrder = updated.map((p, i) => ({ ...p, sortOrder: i }));
     setProducts(withOrder);
     await reorderProducts(withOrder.map((p, i) => ({ id: p.id, sortOrder: i })));
+  };
+
+  const handleMoveCategory = async (id: string, direction: "up" | "down") => {
+    const idx = categories.findIndex(c => c.id === id);
+    if (direction === "up" && idx === 0) return;
+    if (direction === "down" && idx === categories.length - 1) return;
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    const updated = [...categories];
+    [updated[idx], updated[swapIdx]] = [updated[swapIdx], updated[idx]];
+    const withOrder = updated.map((c, i) => ({ ...c, sortOrder: i }));
+    setCategories(withOrder);
+    await reorderCategories(withOrder.map((c, i) => ({ id: c.id, sortOrder: i })));
+  };
+
+  const handleToggleRequiresEmail = async (id: string) => {
+    setTogglingRequiresEmailId(id);
+    try { await toggleRequiresEmail(id); setProducts((await getProducts()).data); }
+    catch (err: any) { setError(err.response?.data?.error || "فشل"); }
+    finally { setTogglingRequiresEmailId(null); }
+  };
+
+  const handleSaveProduct = async (id: string) => {
+    setSavingProduct(true);
+    try {
+      await updateProduct(id, { name: editProductName, description: editProductDesc || undefined });
+      setEditProductId(null);
+      setProducts((await getProducts()).data);
+    } catch (err: any) { setError(err.response?.data?.error || "فشل"); }
+    finally { setSavingProduct(false); }
+  };
+
+  const handleDeleteProduct = async (id: string, name: string) => {
+    if (!confirm(`حذف المنتج "${name}"؟ سيتم حذف جميع المفاتيح والطلبات المرتبطة به.`)) return;
+    setDeletingProductId(id);
+    try {
+      await deleteProduct(id);
+      setProducts(prev => prev.filter(p => p.id !== id));
+    } catch (err: any) { setError(err.response?.data?.error || "فشل"); }
+    finally { setDeletingProductId(null); }
   };
 
   const handleStatsPeriodChange = async (period: StatsPeriod) => {
@@ -160,6 +204,20 @@ export default function AdminPage() {
     if (!confirm("حذف هذا العميل؟")) return;
     try { await deleteCustomer(id); setCustomers(prev => prev.filter(c => c.id !== id)); }
     catch (err: any) { setError(err.response?.data?.error || "فشل"); }
+  };
+
+  const handleEditCustomer = async (e: React.FormEvent, id: string) => {
+    e.preventDefault(); setSavingCustomer(true); setEditCustomerError(null);
+    try {
+      const data: { name?: string; email?: string; password?: string } = {};
+      if (editCustomerName.trim()) data.name = editCustomerName.trim();
+      if (editCustomerEmail.trim()) data.email = editCustomerEmail.trim();
+      if (editCustomerPassword.trim()) data.password = editCustomerPassword.trim();
+      await updateCustomer(id, data);
+      setEditCustomerId(null); setEditCustomerPassword("");
+      setCustomers((await getCustomers()).data);
+    } catch (err: any) { setEditCustomerError(err.response?.data?.error || "فشل"); }
+    finally { setSavingCustomer(false); }
   };
 
   const handleAdjustCredits = async (e: React.FormEvent) => {
@@ -590,10 +648,28 @@ export default function AdminPage() {
                       <span style={{ display: "inline-block", marginTop: "0.4rem", background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", fontSize: "0.75rem", fontWeight: 700, padding: "0.2rem 0.65rem", borderRadius: 20 }}>${c.credits} رصيد</span>
                     </div>
                     <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0, marginRight: "0.5rem" }}>
+                      <button onClick={() => { setEditCustomerId(editCustomerId === c.id ? null : c.id); setEditCustomerName(c.name); setEditCustomerEmail(c.email); setEditCustomerPassword(""); setEditCustomerError(null); }} style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                        <Edit2 style={{ width: 14, height: 14 }} />
+                      </button>
                       <button onClick={() => setCreditUserId(creditUserId === c.id ? null : c.id)} style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", borderRadius: 8, padding: "0.4rem 0.65rem", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", fontFamily: "Tajawal, sans-serif" }}>رصيد</button>
                       <button onClick={() => handleDeleteCustomer(c.id)} style={{ background: "#fff5f5", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer" }}><Trash2 style={{ width: 14, height: 14 }} /></button>
                     </div>
                   </div>
+
+                  {editCustomerId === c.id && (
+                    <form onSubmit={e => handleEditCustomer(e, c.id)} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.75rem", padding: "0.75rem", background: "#f9f9ff", borderRadius: 10, border: "1px solid rgba(112,45,255,0.12)" }}>
+                      <div style={{ fontSize: "0.8rem", color: "#702dff", fontWeight: 700, marginBottom: "0.1rem" }}>تعديل بيانات {c.name}</div>
+                      {editCustomerError && <div style={{ fontSize: "0.78rem", color: "#dc2626", background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 8, padding: "0.5rem 0.75rem" }}>{editCustomerError}</div>}
+                      <input value={editCustomerName} onChange={e => setEditCustomerName(e.target.value)} placeholder="الاسم الكامل" style={inp} />
+                      <input type="email" value={editCustomerEmail} onChange={e => setEditCustomerEmail(e.target.value)} placeholder="البريد الإلكتروني" style={inp} />
+                      <input type="password" value={editCustomerPassword} onChange={e => setEditCustomerPassword(e.target.value)} placeholder="كلمة مرور جديدة (اتركها فارغة لعدم التغيير)" style={inp} />
+                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <button type="submit" disabled={savingCustomer} style={{ ...btnP, flex: 1, padding: "0.65rem" }}>{savingCustomer ? <Loader2 style={{ width: 13, height: 13, animation: "spin 1s linear infinite" }} /> : <Check style={{ width: 13, height: 13 }} />}{savingCustomer ? "جاري..." : "حفظ التغييرات"}</button>
+                        <button type="button" onClick={() => setEditCustomerId(null)} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: "0.65rem 1rem", cursor: "pointer", color: "#6b7280", fontFamily: "Tajawal, sans-serif" }}>إلغاء</button>
+                      </div>
+                    </form>
+                  )}
+
                   {creditUserId === c.id && (
                     <form onSubmit={handleAdjustCredits} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.75rem", padding: "0.75rem", background: "#f5f4ff", borderRadius: 10 }}>
                       <div style={{ fontSize: "0.8rem", color: "#702dff", fontWeight: 700 }}>تعديل رصيد {c.name}:</div>
@@ -652,25 +728,59 @@ export default function AdminPage() {
             {products.length === 0 && <div style={{ ...card, padding: "2rem", textAlign: "center", color: "#9ca3af" }}>لا توجد منتجات</div>}
             {products.map(p => (
               <React.Fragment key={p.id}>
-                <div style={{ ...card, padding: "1rem" }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "0.6rem" }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                        {p.productNumber && <span style={{ fontFamily: "monospace", fontSize: "0.65rem", color: "#702dff", fontWeight: 700, background: "#f5f4ff", padding: "0.1rem 0.35rem", borderRadius: 5, border: "1px solid rgba(112,45,255,0.2)" }}>#{p.productNumber}</span>}
-                        <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#090040" }}>{p.isManual ? "📦" : "🔑"} {p.name}</span>
+                <div style={{ ...card, padding: "1rem 1rem 0.85rem", borderRight: `3px solid ${p.isManual ? "#a78bfa" : "#702dff"}` }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", marginBottom: "0.65rem" }}>
+                    {/* Left: name + description */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" as const }}>
+                        {p.productNumber && <span style={{ fontFamily: "monospace", fontSize: "0.65rem", color: "#702dff", fontWeight: 700, background: "#f5f4ff", padding: "0.15rem 0.4rem", borderRadius: 6, border: "1px solid rgba(112,45,255,0.2)", flexShrink: 0 }}>#{p.productNumber}</span>}
+                        <span style={{ fontWeight: 800, fontSize: "0.92rem", color: "#090040" }}>{p.isManual ? "📦" : "🔑"} {p.name}</span>
+                        <button onClick={() => { setEditProductId(editProductId === p.id ? null : p.id); setEditProductName(p.name); setEditProductDesc(p.description || ""); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#c4b5fd", padding: "0.15rem", display: "flex", borderRadius: 4 }} title="تعديل">
+                          <Edit2 style={{ width: 12, height: 12 }} />
+                        </button>
                       </div>
-                      {p.description && <div style={{ color: "#9ca3af", fontSize: "0.75rem", marginTop: "0.15rem" }}>{p.description}</div>}
+                      {p.description && <div style={{ color: "#9ca3af", fontSize: "0.75rem", marginTop: "0.2rem", lineHeight: 1.4 }}>{p.description}</div>}
                     </div>
-                    {/* Reorder buttons */}
-                    <div style={{ display: "flex", flexDirection: "column" as const, gap: "2px", flexShrink: 0, marginRight: "0.25rem" }}>
-                      <button onClick={() => handleMoveProduct(p.id, "up")} disabled={products.indexOf(p) === 0} style={{ background: "none", border: "1px solid #e5e7eb", borderRadius: 5, padding: "0.1rem 0.3rem", cursor: "pointer", color: "#6b7280", lineHeight: 1, fontSize: "0.7rem" }}>▲</button>
-                      <button onClick={() => handleMoveProduct(p.id, "down")} disabled={products.indexOf(p) === products.length - 1} style={{ background: "none", border: "1px solid #e5e7eb", borderRadius: 5, padding: "0.1rem 0.3rem", cursor: "pointer", color: "#6b7280", lineHeight: 1, fontSize: "0.7rem" }}>▼</button>
+
+                    {/* Right: actions column */}
+                    <div style={{ display: "flex", flexDirection: "column" as const, alignItems: "flex-end", gap: "0.4rem", flexShrink: 0 }}>
+                      {/* Row 1: toggle badges + delete */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                        <button onClick={() => handleToggleManual(p.id)} disabled={togglingId === p.id} style={{ background: p.isManual ? "#f5f4ff" : "#f3f4f6", border: `1px solid ${p.isManual ? "rgba(112,45,255,0.3)" : "#e5e7eb"}`, color: p.isManual ? "#702dff" : "#6b7280", borderRadius: 20, padding: "0.2rem 0.6rem", fontSize: "0.68rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                          {togglingId === p.id ? <Loader2 style={{ width: 10, height: 10, animation: "spin 1s linear infinite" }} /> : <Zap style={{ width: 10, height: 10 }} />}
+                          {p.isManual ? "يدوي" : "تلقائي"}
+                        </button>
+                        {p.isManual && (
+                          <button onClick={() => handleToggleRequiresEmail(p.id)} disabled={togglingRequiresEmailId === p.id} style={{ background: p.requiresEmail ? "#f0fdf4" : "#fff7ed", border: `1px solid ${p.requiresEmail ? "#86efac" : "#fdba74"}`, color: p.requiresEmail ? "#16a34a" : "#ea580c", borderRadius: 20, padding: "0.2rem 0.6rem", fontSize: "0.68rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                            {togglingRequiresEmailId === p.id ? <Loader2 style={{ width: 10, height: 10, animation: "spin 1s linear infinite" }} /> : null}
+                            {p.requiresEmail ? "📧 إيميل" : "📦 بدون إيميل"}
+                          </button>
+                        )}
+                        <button onClick={() => handleDeleteProduct(p.id, p.name)} disabled={deletingProductId === p.id} style={{ background: "#fff5f5", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 8, padding: "0.3rem 0.45rem", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                          {deletingProductId === p.id ? <Loader2 style={{ width: 13, height: 13, animation: "spin 1s linear infinite" }} /> : <Trash2 style={{ width: 13, height: 13 }} />}
+                        </button>
+                      </div>
+                      {/* Row 2: reorder arrows under delete */}
+                      <div style={{ display: "flex", gap: "3px" }}>
+                        <button onClick={() => handleMoveProduct(p.id, "up")} disabled={products.indexOf(p) === 0} style={{ background: products.indexOf(p) === 0 ? "#f9fafb" : "#fff", border: "1px solid #e5e7eb", borderRadius: 6, padding: "0.2rem 0.45rem", cursor: products.indexOf(p) === 0 ? "not-allowed" : "pointer", color: products.indexOf(p) === 0 ? "#d1d5db" : "#6b7280", fontSize: "0.7rem", lineHeight: 1 }}>▲</button>
+                        <button onClick={() => handleMoveProduct(p.id, "down")} disabled={products.indexOf(p) === products.length - 1} style={{ background: products.indexOf(p) === products.length - 1 ? "#f9fafb" : "#fff", border: "1px solid #e5e7eb", borderRadius: 6, padding: "0.2rem 0.45rem", cursor: products.indexOf(p) === products.length - 1 ? "not-allowed" : "pointer", color: products.indexOf(p) === products.length - 1 ? "#d1d5db" : "#6b7280", fontSize: "0.7rem", lineHeight: 1 }}>▼</button>
+                      </div>
                     </div>
-                    <button onClick={() => handleToggleManual(p.id)} disabled={togglingId === p.id} style={{ background: p.isManual ? "#f5f4ff" : "#f3f4f6", border: `1px solid ${p.isManual ? "rgba(112,45,255,0.3)" : "#e5e7eb"}`, color: p.isManual ? "#702dff" : "#6b7280", borderRadius: 20, padding: "0.25rem 0.65rem", fontSize: "0.7rem", fontWeight: 700, cursor: "pointer", flexShrink: 0, marginRight: "0.5rem", display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                      {togglingId === p.id ? <Loader2 style={{ width: 11, height: 11, animation: "spin 1s linear infinite" }} /> : <Zap style={{ width: 11, height: 11 }} />}
-                      {p.isManual ? "يدوي" : "تلقائي"}
-                    </button>
                   </div>
+
+                  {editProductId === p.id && (
+                    <div style={{ marginBottom: "0.75rem", display: "flex", flexDirection: "column" as const, gap: "0.5rem", background: "#f9f9ff", padding: "0.75rem", borderRadius: 10, border: "1px solid rgba(112,45,255,0.12)" }}>
+                      <input value={editProductName} onChange={e => setEditProductName(e.target.value)} placeholder="اسم المنتج" style={{ ...inp }} autoFocus />
+                      <input value={editProductDesc} onChange={e => setEditProductDesc(e.target.value)} placeholder="الوصف (اختياري)" style={{ ...inp }} />
+                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <button onClick={() => handleSaveProduct(p.id)} disabled={savingProduct || !editProductName.trim()} style={{ ...btnP, flex: 1, padding: "0.55rem 1rem" }}>
+                          {savingProduct ? <Loader2 style={{ width: 13, height: 13, animation: "spin 1s linear infinite" }} /> : <Check style={{ width: 13, height: 13 }} />}
+                          {savingProduct ? "جاري..." : "حفظ"}
+                        </button>
+                        <button onClick={() => setEditProductId(null)} style={{ background: "#f3f4f6", border: "none", borderRadius: 10, padding: "0.55rem 1rem", cursor: "pointer", color: "#6b7280", fontFamily: "Tajawal, sans-serif" }}>إلغاء</button>
+                      </div>
+                    </div>
+                  )}
 
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" as const }}>
                     {editPriceId === p.id ? (
@@ -790,9 +900,14 @@ export default function AdminPage() {
               </form>
             </div>
             {categories.length === 0 && <div style={{ ...card, padding: "2rem", textAlign: "center", color: "#9ca3af" }}>لا توجد فئات بعد</div>}
-            {categories.map(c => (
+            {categories.map((c, idx) => (
               <div key={c.id} style={{ ...card, padding: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  {/* Reorder buttons */}
+                  <div style={{ display: "flex", flexDirection: "column" as const, gap: "2px", flexShrink: 0 }}>
+                    <button onClick={() => handleMoveCategory(c.id, "up")} disabled={idx === 0} style={{ background: "none", border: "1px solid #e5e7eb", borderRadius: 5, padding: "0.1rem 0.3rem", cursor: idx === 0 ? "not-allowed" : "pointer", color: idx === 0 ? "#d1d5db" : "#6b7280", lineHeight: 1, fontSize: "0.7rem" }}>▲</button>
+                    <button onClick={() => handleMoveCategory(c.id, "down")} disabled={idx === categories.length - 1} style={{ background: "none", border: "1px solid #e5e7eb", borderRadius: 5, padding: "0.1rem 0.3rem", cursor: idx === categories.length - 1 ? "not-allowed" : "pointer", color: idx === categories.length - 1 ? "#d1d5db" : "#6b7280", lineHeight: 1, fontSize: "0.7rem" }}>▼</button>
+                  </div>
                   <Tag style={{ width: 16, height: 16, color: "#702dff" }} />
                   <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#090040" }}>{c.name}</span>
                   <span style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", fontSize: "0.72rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: 20 }}>{c._count.products} منتج</span>

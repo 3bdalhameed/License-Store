@@ -250,10 +250,50 @@ router.post("/keys", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// PATCH /api/admin/customers/:id — edit name, email, password
+router.patch("/customers/:id", async (req: AuthRequest, res: Response) => {
+  try {
+    const schema = z.object({
+      name: z.string().min(1).optional(),
+      email: z.string().email().optional(),
+      password: z.string().min(6).optional(),
+    });
+    const { name, email, password } = schema.parse(req.body);
+    const data: any = {};
+    if (name) data.name = name;
+    if (email) {
+      const existing = await prisma.user.findFirst({ where: { email, NOT: { id: req.params.id } } });
+      if (existing) return res.status(400).json({ error: "البريد الإلكتروني مستخدم بالفعل" });
+      data.email = email;
+    }
+    if (password) data.password = await bcrypt.hash(password, 10);
+    const updated = await prisma.user.update({
+      where: { id: req.params.id },
+      data,
+      select: { id: true, email: true, name: true, credits: true, createdAt: true },
+    });
+    return res.json(updated);
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors[0]?.message || "بيانات غير صحيحة" });
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // DELETE /api/admin/customers/:id
 router.delete("/customers/:id", async (req: AuthRequest, res: Response) => {
   await prisma.user.delete({ where: { id: req.params.id } });
   return res.json({ success: true });
+});
+
+// PATCH /api/admin/products/:id/toggle-requires-email
+router.patch("/products/:id/toggle-requires-email", async (req: AuthRequest, res: Response) => {
+  const product = await (prisma.product as any).findUnique({ where: { id: req.params.id } });
+  if (!product) return res.status(404).json({ error: "Product not found" });
+  const updated = await (prisma.product as any).update({
+    where: { id: req.params.id },
+    data: { requiresEmail: !product.requiresEmail },
+  });
+  return res.json(updated);
 });
 
 // PATCH /api/admin/products/:id/toggle-manual
@@ -317,10 +357,24 @@ router.patch("/products/:id/category", async (req: AuthRequest, res: Response) =
 // GET /api/admin/categories
 router.get("/categories", async (_req: AuthRequest, res: Response) => {
   const categories = await prisma.category.findMany({
-    orderBy: { name: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     include: { _count: { select: { products: true } } },
   });
   return res.json(categories);
+});
+
+// PUT /api/admin/categories/reorder
+router.put("/categories/reorder", async (req: AuthRequest, res: Response) => {
+  try {
+    const items = z.array(z.object({ id: z.string(), sortOrder: z.number().int() })).parse(req.body);
+    await Promise.all(items.map(({ id, sortOrder }) =>
+      (prisma.category as any).update({ where: { id }, data: { sortOrder } })
+    ));
+    return res.json({ success: true });
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ error: "بيانات غير صحيحة" });
+    return res.status(500).json({ error: "Server error" });
+  }
 });
 
 // POST /api/admin/categories
@@ -333,6 +387,38 @@ router.post("/categories", async (req: AuthRequest, res: Response) => {
     return res.status(201).json(category);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors[0]?.message || "بيانات غير صحيحة" });
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PATCH /api/admin/products/:id — edit name/description
+router.patch("/products/:id", async (req: AuthRequest, res: Response) => {
+  try {
+    const schema = z.object({
+      name: z.string().min(1).optional(),
+      description: z.string().optional(),
+    });
+    const data = schema.parse(req.body);
+    const updated = await prisma.product.update({ where: { id: req.params.id }, data });
+    return res.json(updated);
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors[0]?.message || "بيانات غير صحيحة" });
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// DELETE /api/admin/products/:id
+router.delete("/products/:id", async (req: AuthRequest, res: Response) => {
+  try {
+    const product = await prisma.product.findUnique({ where: { id: req.params.id } });
+    if (!product) return res.status(404).json({ error: "Product not found" });
+    // Delete related data first
+    await prisma.manualOrder.deleteMany({ where: { productId: req.params.id } });
+    await prisma.order.deleteMany({ where: { productId: req.params.id } });
+    await prisma.licenseKey.deleteMany({ where: { productId: req.params.id } });
+    await prisma.product.delete({ where: { id: req.params.id } });
+    return res.json({ success: true });
+  } catch (err) {
     return res.status(500).json({ error: "Server error" });
   }
 });

@@ -18,7 +18,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const schema = z.object({
       productId: z.string(),
-      emails: z.array(z.string().email()).min(1).max(10),
+      emails: z.array(z.string()).max(10).default([]),
     });
     const { productId, emails } = schema.parse(req.body);
 
@@ -33,8 +33,17 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: "لا يوجد مخزون متاح لهذا المنتج" });
     }
 
-    // Total cost = price per email × number of emails
-    const totalCost = product.priceInCredits * emails.length;
+    // Validate emails only when product requires them
+    if (product.requiresEmail !== false) {
+      if (emails.length === 0) return res.status(400).json({ error: "أدخل بريداً إلكترونياً واحداً على الأقل" });
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const invalid = emails.find((e: string) => !emailRegex.test(e));
+      if (invalid) return res.status(400).json({ error: "بريد إلكتروني غير صحيح" });
+    }
+
+    // Total cost = price × emails (or price × 1 if no email required)
+    const emailCount = (product.requiresEmail !== false) ? emails.length : 1;
+    const totalCost = product.priceInCredits * emailCount;
     const DEBT_LIMIT = -20;
     const balanceAfter = user.credits - totalCost;
 
@@ -79,7 +88,9 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
           userId: user.id,
           amount: -totalCost,
           type: "DEDUCT",
-          note: `Manual order (${emails.length} emails): ${product.name}`,
+          note: product.requiresEmail !== false
+            ? `Manual order (${emails.length} emails): ${product.name}`
+            : `Manual order: ${product.name}`,
         },
       });
       await (tx.product as any).update({
@@ -108,8 +119,8 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
         `🛒 <b>طلب تفعيل يدوي جديد!</b>\n\n` +
         `👤 العميل: <b>${user.name}</b> (${user.email})\n` +
         `📦 المنتج: <b>${product.name}</b>\n` +
-        `📧 الإيميلات: <b>${emails.join(", ")}</b>\n` +
-        `💰 الرصيد المخصوم: <b>${product.priceInCredits}</b>\n\n` +
+        (product.requiresEmail !== false ? `📧 الإيميلات: <b>${emails.join(", ")}</b>\n` : "") +
+        `💰 الرصيد المخصوم: <b>${totalCost}</b>\n\n` +
         `⚡ يرجى التفعيل في أقرب وقت ممكن`
       );
     } catch (telegramErr) {

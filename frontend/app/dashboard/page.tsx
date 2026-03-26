@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 import { Copy, Check, Loader2, AlertCircle, X, Plus, Minus, ShoppingBag, ClipboardList, History } from "lucide-react";
 
 interface User { id: string; name: string; email: string; role: string; credits: number; }
-interface Product { id: string; productNumber?: number; name: string; description?: string; activationInstructions?: string; priceInCredits: number; availableKeys: number; isManual: boolean; categoryId?: string | null; categoryName?: string | null; }
+interface Product { id: string; productNumber?: number; name: string; description?: string; activationInstructions?: string; priceInCredits: number; availableKeys: number; isManual: boolean; requiresEmail?: boolean; categoryId?: string | null; categoryName?: string | null; }
 interface Order { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; product: { name: string }; licenseKey: { key: string }; }
 interface ManualOrder { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; emails: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED"; resultDetails?: string; product: { name: string }; }
 interface CreditLog { id: string; amount: number; type: "ADD" | "DEDUCT"; note?: string; createdAt: string; }
@@ -142,12 +142,15 @@ export default function DashboardPage() {
 
   const handleManualBuy = async () => {
     if (!productModal || !user) return;
-    const validEmails = emailInputs.map(e => e.trim()).filter(e => e);
-    if (validEmails.length === 0) { setManualError("أدخل بريداً إلكترونياً واحداً على الأقل"); return; }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!validEmails.every(e => emailRegex.test(e))) { setManualError("تحقق من صحة البريد الإلكتروني"); return; }
+    const needsEmail = productModal.requiresEmail !== false;
+    const validEmails = needsEmail ? emailInputs.map(e => e.trim()).filter(e => e) : [];
+    if (needsEmail) {
+      if (validEmails.length === 0) { setManualError("أدخل بريداً إلكترونياً واحداً على الأقل"); return; }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!validEmails.every(e => emailRegex.test(e))) { setManualError("تحقق من صحة البريد الإلكتروني"); return; }
+    }
 
-    const totalCost = productModal.priceInCredits * validEmails.length;
+    const totalCost = needsEmail ? productModal.priceInCredits * validEmails.length : productModal.priceInCredits;
     const balanceAfter = user.credits - totalCost;
     if (balanceAfter < DEBT_LIMIT) {
       setManualError(`رصيدك غير كافٍ — الحد الأقصى للدين هو $${Math.abs(DEBT_LIMIT)}`);
@@ -184,7 +187,11 @@ export default function DashboardPage() {
     ...orders.map(o => ({ ...o, type: "key" as const })),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const totalEmailCost = productModal ? productModal.priceInCredits * (emailInputs.filter(e => e.trim()).length || 1) : 0;
+  const totalEmailCost = productModal
+    ? (productModal.requiresEmail !== false
+        ? productModal.priceInCredits * (emailInputs.filter(e => e.trim()).length || 1)
+        : productModal.priceInCredits)
+    : 0;
 
   const tabs = [
     { key: "shop", label: "المتجر", icon: ShoppingBag },
@@ -205,6 +212,10 @@ export default function DashboardPage() {
         <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.85rem", marginTop: "0.3rem", position: "relative", zIndex: 1 }}>
           اكتشف أقوى الاشتراكات الرقمية
         </p>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", marginTop: "0.5rem", background: "rgba(255,220,50,0.15)", border: "1px solid rgba(255,220,50,0.35)", borderRadius: 8, padding: "0.35rem 0.75rem", position: "relative", zIndex: 1 }}>
+          <span style={{ fontSize: "0.8rem" }}>⚠️</span>
+          <span style={{ color: "rgba(255,255,200,0.95)", fontSize: "0.78rem", fontFamily: "Tajawal, sans-serif", fontWeight: 600 }}>يمكنك الشراء حتى رصيد سالب -${Math.abs(DEBT_LIMIT)}</span>
+        </div>
         {user.credits < 0 && (
           <div style={{ marginTop: "0.75rem", background: "rgba(255,60,60,0.2)", border: "1px solid rgba(255,100,100,0.4)", borderRadius: 10, padding: "0.6rem 0.85rem", position: "relative", zIndex: 1 }}>
             <p style={{ color: "#fecaca", fontSize: "0.82rem", margin: 0, fontFamily: "Tajawal, sans-serif" }}>
@@ -577,6 +588,12 @@ export default function DashboardPage() {
                   </div>
                 )}
 
+                {/* Debt limit notice */}
+                <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12, padding: "0.6rem 0.9rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ fontSize: "0.85rem" }}>⚠️</span>
+                  <p style={{ fontSize: "0.8rem", color: "#92400e", margin: 0 }}>يمكنك الشراء حتى رصيد سالب <strong>-${Math.abs(DEBT_LIMIT)}</strong> — رصيدك الحالي: <strong style={{ color: user.credits < 0 ? "#dc2626" : "#16a34a" }}>${user.credits}</strong></p>
+                </div>
+
                 {/* ── Non-manual: qty + buy ── */}
                 {!p.isManual && (
                   <>
@@ -637,34 +654,39 @@ export default function DashboardPage() {
                 {/* ── Manual: email inputs + buy ── */}
                 {p.isManual && (
                   <>
-                    <div>
-                      <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>البريد الإلكتروني للتفعيل</div>
-                      <div style={{ display: "flex", flexDirection: "column" as const, gap: "0.55rem" }}>
-                        {emailInputs.map((email, idx) => (
-                          <div key={idx} style={{ display: "flex", gap: "0.5rem" }}>
-                            <input
-                              type="email" value={email}
-                              onChange={e => { const arr = [...emailInputs]; arr[idx] = e.target.value; setEmailInputs(arr); }}
-                              placeholder={`البريد الإلكتروني ${idx + 1}`}
-                              style={{ flex: 1, padding: "0.75rem 1rem", border: "1.5px solid #e5e7eb", borderRadius: 12, fontSize: "0.9rem", outline: "none", color: "#111", fontFamily: "Tajawal, sans-serif" }}
-                              onFocus={e => e.target.style.borderColor = "#702dff"}
-                              onBlur={e => e.target.style.borderColor = "#e5e7eb"}
-                            />
-                            {emailInputs.length > 1 && (
-                              <button onClick={() => setEmailInputs(emailInputs.filter((_, i) => i !== idx))} style={{ width: 44, background: "#fff5f5", border: "1.5px solid #fecaca", borderRadius: 12, cursor: "pointer", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                <Minus style={{ width: 14, height: 14 }} />
-                              </button>
-                            )}
-                          </div>
-                        ))}
+                    {p.requiresEmail !== false && (
+                      <div>
+                        <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>البريد الإلكتروني للتفعيل</div>
+                        <div style={{ display: "flex", flexDirection: "column" as const, gap: "0.55rem" }}>
+                          {emailInputs.map((email, idx) => (
+                            <div key={idx} style={{ display: "flex", gap: "0.5rem" }}>
+                              <input
+                                type="email" value={email}
+                                onChange={e => { const arr = [...emailInputs]; arr[idx] = e.target.value; setEmailInputs(arr); }}
+                                placeholder={`البريد الإلكتروني ${idx + 1}`}
+                                style={{ flex: 1, padding: "0.75rem 1rem", border: "1.5px solid #e5e7eb", borderRadius: 12, fontSize: "0.9rem", outline: "none", color: "#111", fontFamily: "Tajawal, sans-serif" }}
+                                onFocus={e => e.target.style.borderColor = "#702dff"}
+                                onBlur={e => e.target.style.borderColor = "#e5e7eb"}
+                              />
+                              {emailInputs.length > 1 && (
+                                <button onClick={() => setEmailInputs(emailInputs.filter((_, i) => i !== idx))} style={{ width: 44, background: "#fff5f5", border: "1.5px solid #fecaca", borderRadius: 12, cursor: "pointer", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <Minus style={{ width: 14, height: 14 }} />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <button onClick={() => setEmailInputs([...emailInputs, ""])} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", borderRadius: 12, padding: "0.5rem 1rem", color: "#702dff", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer", marginTop: "0.55rem", fontFamily: "Tajawal, sans-serif", width: "100%", justifyContent: "center" }}>
+                          <Plus style={{ width: 14, height: 14 }} />إضافة إيميل آخر
+                        </button>
                       </div>
-                      <button onClick={() => setEmailInputs([...emailInputs, ""])} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", borderRadius: 12, padding: "0.5rem 1rem", color: "#702dff", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer", marginTop: "0.55rem", fontFamily: "Tajawal, sans-serif", width: "100%", justifyContent: "center" }}>
-                        <Plus style={{ width: 14, height: 14 }} />إضافة إيميل آخر
-                      </button>
-                    </div>
+                    )}
 
                     <div style={{ background: "#f9f9ff", borderRadius: 14, padding: "0.85rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid rgba(112,45,255,0.08)" }}>
-                      <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>${p.priceInCredits} × {emailInputs.filter(e => e.trim()).length || 1} إيميل</span>
+                      {p.requiresEmail !== false
+                        ? <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>${p.priceInCredits} × {emailInputs.filter(e => e.trim()).length || 1} إيميل</span>
+                        : <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>سعر الوحدة</span>
+                      }
                       <span style={{ fontSize: "1.1rem", fontWeight: 900, color: "#702dff" }}>${totalEmailCost} رصيد</span>
                     </div>
 

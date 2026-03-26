@@ -7,7 +7,7 @@ import {
   syncSheets, createProduct, getProducts, addKeys, getAllManualOrders, updateManualOrder,
   toggleManualProduct, updateProductPrice, addManualStock, getAdminStats,
   getPendingRegistrations, approveRegistration, rejectRegistration, updateProductInstructions,
-  getCategories, createCategory, deleteCategory, updateProductCategory,
+  getCategories, createCategory, deleteCategory, updateProductCategory, reorderProducts,
 } from "@/lib/api";
 import Navbar from "@/components/Navbar";
 import {
@@ -87,6 +87,18 @@ export default function AdminPage() {
     if (period === "month") { const d = new Date(now.getFullYear(), now.getMonth(), 1); return { from: fmt(d), to: fmt(now) }; }
     if (period === "year") { return { from: `${now.getFullYear()}-01-01`, to: fmt(now) }; }
     return {};
+  };
+
+  const handleMoveProduct = async (id: string, direction: "up" | "down") => {
+    const idx = products.findIndex(p => p.id === id);
+    if (direction === "up" && idx === 0) return;
+    if (direction === "down" && idx === products.length - 1) return;
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    const updated = [...products];
+    [updated[idx], updated[swapIdx]] = [updated[swapIdx], updated[idx]];
+    const withOrder = updated.map((p, i) => ({ ...p, sortOrder: i }));
+    setProducts(withOrder);
+    await reorderProducts(withOrder.map((p, i) => ({ id: p.id, sortOrder: i })));
   };
 
   const handleStatsPeriodChange = async (period: StatsPeriod) => {
@@ -648,6 +660,11 @@ export default function AdminPage() {
                         <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#090040" }}>{p.isManual ? "📦" : "🔑"} {p.name}</span>
                       </div>
                       {p.description && <div style={{ color: "#9ca3af", fontSize: "0.75rem", marginTop: "0.15rem" }}>{p.description}</div>}
+                    </div>
+                    {/* Reorder buttons */}
+                    <div style={{ display: "flex", flexDirection: "column" as const, gap: "2px", flexShrink: 0, marginRight: "0.25rem" }}>
+                      <button onClick={() => handleMoveProduct(p.id, "up")} disabled={products.indexOf(p) === 0} style={{ background: "none", border: "1px solid #e5e7eb", borderRadius: 5, padding: "0.1rem 0.3rem", cursor: "pointer", color: "#6b7280", lineHeight: 1, fontSize: "0.7rem" }}>▲</button>
+                      <button onClick={() => handleMoveProduct(p.id, "down")} disabled={products.indexOf(p) === products.length - 1} style={{ background: "none", border: "1px solid #e5e7eb", borderRadius: 5, padding: "0.1rem 0.3rem", cursor: "pointer", color: "#6b7280", lineHeight: 1, fontSize: "0.7rem" }}>▼</button>
                     </div>
                     <button onClick={() => handleToggleManual(p.id)} disabled={togglingId === p.id} style={{ background: p.isManual ? "#f5f4ff" : "#f3f4f6", border: `1px solid ${p.isManual ? "rgba(112,45,255,0.3)" : "#e5e7eb"}`, color: p.isManual ? "#702dff" : "#6b7280", borderRadius: 20, padding: "0.25rem 0.65rem", fontSize: "0.7rem", fontWeight: 700, cursor: "pointer", flexShrink: 0, marginRight: "0.5rem", display: "flex", alignItems: "center", gap: "0.3rem" }}>
                       {togglingId === p.id ? <Loader2 style={{ width: 11, height: 11, animation: "spin 1s linear infinite" }} /> : <Zap style={{ width: 11, height: 11 }} />}

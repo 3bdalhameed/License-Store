@@ -154,6 +154,20 @@ router.get("/credit-logs/:userId", async (req: AuthRequest, res: Response) => {
   return res.json(logs);
 });
 
+// PUT /api/admin/products/reorder — update sort order
+router.put("/products/reorder", async (req: AuthRequest, res: Response) => {
+  try {
+    const items = z.array(z.object({ id: z.string(), sortOrder: z.number().int() })).parse(req.body);
+    await Promise.all(items.map(({ id, sortOrder }) =>
+      prisma.product.update({ where: { id }, data: { sortOrder } })
+    ));
+    return res.json({ success: true });
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ error: "بيانات غير صحيحة" });
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // POST /api/admin/products — create a product
 router.post("/products", async (req: AuthRequest, res: Response) => {
   try {

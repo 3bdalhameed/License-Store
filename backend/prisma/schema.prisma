@@ -20,6 +20,7 @@ model User {
   credits             Float         @default(0)
   failedLoginAttempts Int           @default(0)
   lockedUntil         DateTime?
+
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   orders       Order[]
@@ -48,6 +49,7 @@ model Product {
   imageUrl               String?
   isActive               Boolean       @default(true)
   isManual               Boolean       @default(false)
+  sortOrder              Int           @default(0)
   manualStock            Int           @default(0)
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt

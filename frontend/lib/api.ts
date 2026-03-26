@@ -125,6 +125,9 @@ export const updateProductPrice = (id: string, priceInCredits: number) =>
 export const addManualStock = (id: string, amount: number) =>
   api.patch(`/api/admin/products/${id}/manual-stock`, { amount });
 
+export const reorderProducts = (items: { id: string; sortOrder: number }[]) =>
+  api.put("/api/admin/products/reorder", items);
+
 // ── Categories ─────────────────────────────────────────────────────────────────
 export const getCategories = () => api.get("/api/admin/categories");
 

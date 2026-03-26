@@ -10,7 +10,7 @@ router.get("/", async (_req: Request, res: Response) => {
       _count: { select: { licenseKeys: { where: { status: "UNUSED" } }, orders: true } },
       category: { select: { id: true, name: true } },
     },
-    orderBy: { name: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
 
   const result = products.map((p: any) => ({

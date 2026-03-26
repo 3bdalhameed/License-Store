@@ -13,12 +13,20 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const passwordSchema = z
+  .string()
+  .min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل")
+  .regex(/[A-Z]/, "يجب أن تحتوي على حرف كبير واحد على الأقل")
+  .regex(/[a-z]/, "يجب أن تحتوي على حرف صغير واحد على الأقل")
+  .regex(/[0-9]/, "يجب أن تحتوي على رقم واحد على الأقل")
+  .regex(/[^A-Za-z0-9]/, "يجب أن تحتوي على رمز خاص واحد على الأقل");
+
 const registerSchema = z.object({
   email: z.string().email(),
   name: z.string().min(2),
-  password: z.string().min(6),
+  password: passwordSchema,
   phone: z.string().min(7).optional(),
-  storeLink: z.string().url().optional().or(z.literal("")).transform(v => v || undefined),
+  storeLink: z.string().url("رابط المتجر غير صالح"),
 });
 
 // POST /api/auth/register — public self-registration (requires admin approval)
@@ -31,7 +39,7 @@ router.post("/register", async (req: Request, res: Response) => {
 
     const hashed = await bcrypt.hash(password, 10);
     await prisma.user.create({
-      data: { email, name, password: hashed, role: "CUSTOMER", status: "PENDING", phone: phone || null, storeLink: storeLink || null },
+      data: { email, name, password: hashed, role: "CUSTOMER", status: "PENDING", phone: phone || null, storeLink },
     });
 
     return res.status(201).json({ message: "تم إرسال طلب التسجيل. سيتم مراجعته من قِبل الإدارة." });
@@ -41,6 +49,9 @@ router.post("/register", async (req: Request, res: Response) => {
   }
 });
 
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+
 // POST /api/auth/login
 router.post("/login", async (req: Request, res: Response) => {
   try {
@@ -49,14 +60,43 @@ router.post("/login", async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
 
+    // Check lockout
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+      return res.status(429).json({ error: `تم قفل الحساب مؤقتاً. حاول مرة أخرى بعد ${minutesLeft} دقيقة.` });
+    }
+
     const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) return res.status(401).json({ error: "بيانات الدخول غير صحيحة" });
+    if (!isValid) {
+      const newAttempts = user.failedLoginAttempts + 1;
+      const shouldLock = newAttempts >= MAX_FAILED_ATTEMPTS;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: newAttempts,
+          lockedUntil: shouldLock ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null,
+        },
+      });
+      if (shouldLock) {
+        return res.status(429).json({ error: "تم قفل الحساب لمدة 15 دقيقة بسبب كثرة محاولات الدخول الفاشلة." });
+      }
+      const remaining = MAX_FAILED_ATTEMPTS - newAttempts;
+      return res.status(401).json({ error: `بيانات الدخول غير صحيحة. ${remaining} محاولة متبقية قبل القفل.` });
+    }
 
     if (user.status === "PENDING") {
       return res.status(403).json({ error: "حسابك قيد المراجعة. سيتم إخطارك بالبريد الإلكتروني عند القبول." });
     }
     if (user.status === "REJECTED") {
       return res.status(403).json({ error: "تم رفض طلب التسجيل. يرجى التواصل مع الدعم." });
+    }
+
+    // Reset failed attempts on successful login
+    if (user.failedLoginAttempts > 0) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: 0, lockedUntil: null },
+      });
     }
 
     const token = jwt.sign(
@@ -139,7 +179,7 @@ router.post("/reset-password", async (req: Request, res: Response) => {
   try {
     const { token, password } = z.object({
       token: z.string(),
-      password: z.string().min(6),
+      password: passwordSchema,
     }).parse(req.body);
 
     const resetToken = await prisma.passwordResetToken.findUnique({ where: { token } });

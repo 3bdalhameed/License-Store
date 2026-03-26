@@ -4,6 +4,16 @@ import { useRouter } from "next/navigation";
 import { register } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
+function getPasswordStrength(p: string) {
+  return [
+    { label: "8 أحرف على الأقل", ok: p.length >= 8 },
+    { label: "حرف كبير (A-Z)", ok: /[A-Z]/.test(p) },
+    { label: "حرف صغير (a-z)", ok: /[a-z]/.test(p) },
+    { label: "رقم (0-9)", ok: /[0-9]/.test(p) },
+    { label: "رمز خاص (!@#...)", ok: /[^A-Za-z0-9]/.test(p) },
+  ];
+}
+
 export default function RegisterPage() {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -15,11 +25,16 @@ export default function RegisterPage() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [showStrength, setShowStrength] = useState(false);
+  const strength = getPasswordStrength(password);
+  const isPasswordValid = strength.every(r => r.ok);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!isPasswordValid) { setError("كلمة المرور لا تستوفي متطلبات الأمان"); return; }
     setError(""); setLoading(true);
     try {
-      await register(name, email, password, phone || undefined, storeLink || undefined);
+      await register(name, email, password, phone || undefined, storeLink);
       setSuccess(true);
     } catch (err: any) {
       setError(err.response?.data?.error || "حدث خطأ، حاول مجدداً");
@@ -77,11 +92,21 @@ export default function RegisterPage() {
                 </div>
                 <div>
                   <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 700, color: "#374151", marginBottom: "0.4rem" }}>كلمة المرور</label>
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••" minLength={6}
+                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••" minLength={8}
                     style={{ width: "100%", padding: "0.85rem 1rem", border: "1.5px solid #e5e7eb", borderRadius: 12, fontSize: "1rem", outline: "none", color: "#111", fontFamily: "Tajawal, sans-serif", boxSizing: "border-box" as const }}
-                    onFocus={e => e.target.style.borderColor = "#702dff"}
+                    onFocus={e => { e.target.style.borderColor = "#702dff"; setShowStrength(true); }}
                     onBlur={e => e.target.style.borderColor = "#e5e7eb"}
                   />
+                  {showStrength && password.length > 0 && (
+                    <div style={{ marginTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                      {strength.map(r => (
+                        <div key={r.label} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.78rem", color: r.ok ? "#16a34a" : "#9ca3af" }}>
+                          <span>{r.ok ? "✓" : "○"}</span>
+                          <span>{r.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 700, color: "#374151", marginBottom: "0.4rem" }}>رقم الهاتف / واتساب</label>
@@ -92,8 +117,8 @@ export default function RegisterPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 700, color: "#374151", marginBottom: "0.4rem" }}>رابط متجرك <span style={{ color: "#9ca3af", fontWeight: 400 }}></span></label>
-                  <input type="url" value={storeLink} onChange={e => setStoreLink(e.target.value)} placeholder="https://yourstore.com"
+                  <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 700, color: "#374151", marginBottom: "0.4rem" }}>رابط متجرك</label>
+                  <input type="url" value={storeLink} onChange={e => setStoreLink(e.target.value)} required placeholder="https://yourstore.com"
                     style={{ width: "100%", padding: "0.85rem 1rem", border: "1.5px solid #e5e7eb", borderRadius: 12, fontSize: "0.9rem", outline: "none", color: "#111", fontFamily: "monospace", boxSizing: "border-box" as const, direction: "ltr", textAlign: "left" as const }}
                     onFocus={e => e.target.style.borderColor = "#702dff"}
                     onBlur={e => e.target.style.borderColor = "#e5e7eb"}

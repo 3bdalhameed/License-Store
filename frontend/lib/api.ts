@@ -50,7 +50,13 @@ export const getMyOrders = () => api.get("/api/orders");
 export const getMyCreditLogs = () => api.get("/api/orders/my-credits");
 
 // ── Admin ────────────────────────────────────────────────────────────────────
-export const getAdminStats = () => api.get("/api/admin/stats");
+export const getAdminStats = (from?: string, to?: string) => {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const qs = params.toString();
+  return api.get(`/api/admin/stats${qs ? `?${qs}` : ""}`);
+};
 
 export const getPendingRegistrations = () => api.get("/api/admin/pending-registrations");
 

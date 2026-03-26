@@ -22,16 +22,24 @@ const adjustCreditsSchema = z.object({
   note: z.string().optional(),
 });
 
-// GET /api/admin/stats
-router.get("/stats", async (_req: AuthRequest, res: Response) => {
+// GET /api/admin/stats?from=2024-01-01&to=2024-12-31
+router.get("/stats", async (req: AuthRequest, res: Response) => {
+  const { from, to } = req.query;
+  const dateFilter = (from || to) ? {
+    createdAt: {
+      ...(from ? { gte: new Date(from as string) } : {}),
+      ...(to ? { lte: new Date(to as string) } : {}),
+    },
+  } : {};
+
   const [totalCustomers, totalOrders, totalManualOrders, pendingManualOrders, totalProducts, totalRevenue, manualRevenue] = await Promise.all([
     prisma.user.count({ where: { role: "CUSTOMER" } }),
-    prisma.order.count(),
-    prisma.manualOrder.count(),
+    prisma.order.count({ where: dateFilter }),
+    prisma.manualOrder.count({ where: dateFilter }),
     prisma.manualOrder.count({ where: { status: { in: ["PENDING", "IN_PROGRESS"] } } }),
     prisma.product.count({ where: { isActive: true } }),
-    prisma.order.aggregate({ _sum: { creditsCost: true } }),
-    prisma.manualOrder.aggregate({ _sum: { creditsCost: true }, where: { status: "COMPLETED" } }),
+    prisma.order.aggregate({ _sum: { creditsCost: true }, where: dateFilter }),
+    prisma.manualOrder.aggregate({ _sum: { creditsCost: true }, where: { status: "COMPLETED", ...dateFilter } }),
   ]);
   return res.json({
     totalCustomers,

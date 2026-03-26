@@ -74,6 +74,31 @@ export default function AdminPage() {
   const [editCategoryId, setEditCategoryId] = useState<string | null>(null); const [editCategoryVal, setEditCategoryVal] = useState<string>("");
   const [savingCategory, setSavingCategory] = useState(false);
 
+  type StatsPeriod = "all" | "today" | "week" | "month" | "year";
+  const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>("all");
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  const getDateRange = (period: StatsPeriod): { from?: string; to?: string } => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    if (period === "today") { const t = fmt(now); return { from: t, to: t }; }
+    if (period === "week") { const d = new Date(now); d.setDate(now.getDate() - 6); return { from: fmt(d), to: fmt(now) }; }
+    if (period === "month") { const d = new Date(now.getFullYear(), now.getMonth(), 1); return { from: fmt(d), to: fmt(now) }; }
+    if (period === "year") { return { from: `${now.getFullYear()}-01-01`, to: fmt(now) }; }
+    return {};
+  };
+
+  const handleStatsPeriodChange = async (period: StatsPeriod) => {
+    setStatsPeriod(period);
+    setStatsLoading(true);
+    try {
+      const { from, to } = getDateRange(period);
+      const res = await getAdminStats(from, to);
+      setStats(res.data);
+    } finally { setStatsLoading(false); }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) { router.push("/login"); return; }
@@ -325,8 +350,25 @@ export default function AdminPage() {
         {tab === "stats" && stats && (() => {
           const avgOrder = stats.totalOrders > 0 ? (stats.totalRevenue / stats.totalOrders).toFixed(2) : "0.00";
           const lowStockProducts = products.filter(p => !p.isManual && p.availableKeys <= 3);
+          const periodLabels: Record<string, string> = { all: "الكل", today: "اليوم", week: "الأسبوع", month: "الشهر", year: "السنة" };
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+
+              {/* ── Period filter ── */}
+              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" as const }}>
+                {(["all", "today", "week", "month", "year"] as const).map(p => (
+                  <button key={p} onClick={() => handleStatsPeriodChange(p)} disabled={statsLoading} style={{
+                    padding: "0.45rem 0.9rem", borderRadius: 10, border: "1.5px solid",
+                    borderColor: statsPeriod === p ? "#702dff" : "#e5e7eb",
+                    background: statsPeriod === p ? "#702dff" : "#fff",
+                    color: statsPeriod === p ? "#fff" : "#374151",
+                    fontFamily: "Tajawal, sans-serif", fontWeight: 700, fontSize: "0.8rem",
+                    cursor: statsLoading ? "not-allowed" : "pointer", opacity: statsLoading ? 0.6 : 1,
+                  }}>
+                    {periodLabels[p]}
+                  </button>
+                ))}
+              </div>
 
               {/* ── Revenue hero ── */}
               <div style={{ background: "linear-gradient(135deg, #702dff 0%, #9044ff 100%)", borderRadius: 20, padding: "1.5rem 1.4rem", position: "relative", overflow: "hidden" }}>

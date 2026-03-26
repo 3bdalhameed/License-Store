@@ -631,7 +631,7 @@ export default function AdminPage() {
               {showCreateForm && (
                 <form onSubmit={handleCreateCustomer} style={{ display: "flex", flexDirection: "column", gap: "0.6rem", padding: "0 1rem 1rem", borderTop: "1px solid #f3f4f6" }}>
                   <div style={{ paddingTop: "0.75rem" }}><input value={newName} onChange={e => setNewName(e.target.value)} placeholder="الاسم الكامل" required style={inp} /></div>
-                  <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="البريد الإلكتروني" required style={inp} />
+                  <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value.toLowerCase())} placeholder="البريد الإلكتروني" required style={inp} />
                   <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="كلمة المرور (6 أحرف على الأقل)" required minLength={6} style={inp} />
                   <button type="submit" disabled={creating} style={btnP}>{creating && <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />}{creating ? "جاري الإنشاء..." : "إنشاء الحساب"}</button>
                 </form>
@@ -681,7 +681,7 @@ export default function AdminPage() {
                       <div style={{ fontSize: "0.8rem", color: "#702dff", fontWeight: 700, marginBottom: "0.1rem" }}>تعديل بيانات {c.name}</div>
                       {editCustomerError && <div style={{ fontSize: "0.78rem", color: "#dc2626", background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 8, padding: "0.5rem 0.75rem" }}>{editCustomerError}</div>}
                       <input value={editCustomerName} onChange={e => setEditCustomerName(e.target.value)} placeholder="الاسم الكامل" style={inp} />
-                      <input type="email" value={editCustomerEmail} onChange={e => setEditCustomerEmail(e.target.value)} placeholder="البريد الإلكتروني" style={inp} />
+                      <input type="email" value={editCustomerEmail} onChange={e => setEditCustomerEmail(e.target.value.toLowerCase())} placeholder="البريد الإلكتروني" style={inp} />
                       <input type="password" value={editCustomerPassword} onChange={e => setEditCustomerPassword(e.target.value)} placeholder="كلمة مرور جديدة (اتركها فارغة لعدم التغيير)" style={inp} />
                       <div style={{ display: "flex", gap: "0.5rem" }}>
                         <button type="submit" disabled={savingCustomer} style={{ ...btnP, flex: 1, padding: "0.65rem" }}>{savingCustomer ? <Loader2 style={{ width: 13, height: 13, animation: "spin 1s linear infinite" }} /> : <Check style={{ width: 13, height: 13 }} />}{savingCustomer ? "جاري..." : "حفظ التغييرات"}</button>

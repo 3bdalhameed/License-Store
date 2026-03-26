@@ -693,7 +693,7 @@ export default function DashboardPage() {
                             <div key={idx} style={{ display: "flex", gap: "0.5rem" }}>
                               <input
                                 type="email" value={email}
-                                onChange={e => { const arr = [...emailInputs]; arr[idx] = e.target.value; setEmailInputs(arr); }}
+                                onChange={e => { const arr = [...emailInputs]; arr[idx] = e.target.value.toLowerCase(); setEmailInputs(arr); }}
                                 placeholder={`البريد الإلكتروني ${idx + 1}`}
                                 style={{ flex: 1, padding: "0.75rem 1rem", border: "1.5px solid #e5e7eb", borderRadius: 12, fontSize: "0.9rem", outline: "none", color: "#111", fontFamily: "Tajawal, sans-serif" }}
                                 onFocus={e => e.target.style.borderColor = "#702dff"}

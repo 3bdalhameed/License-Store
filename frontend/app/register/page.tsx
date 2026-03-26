@@ -84,7 +84,7 @@ export default function RegisterPage() {
                 </div>
                 <div>
                   <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 700, color: "#374151", marginBottom: "0.4rem" }}>البريد الإلكتروني</label>
-                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="example@email.com"
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value.toLowerCase())} required placeholder="example@email.com"
                     style={{ width: "100%", padding: "0.85rem 1rem", border: "1.5px solid #e5e7eb", borderRadius: 12, fontSize: "1rem", outline: "none", color: "#111", fontFamily: "Tajawal, sans-serif", boxSizing: "border-box" as const }}
                     onFocus={e => e.target.style.borderColor = "#702dff"}
                     onBlur={e => e.target.style.borderColor = "#e5e7eb"}

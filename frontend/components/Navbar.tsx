@@ -11,6 +11,7 @@ const WhatsAppIcon = ({ size = 14 }: { size?: number }) => (
 
 // Update these to your contact details
 const WHATSAPP_URL = `https://whatsapp.com/channel/0029Vb7a54NEKyZ95xH04k0v`;
+const WHATSAPP_DIRECT = `https://wa.me/962781535553`;
 
 const TelegramIcon = ({ size = 14 }: { size?: number }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: size, height: size, flexShrink: 0 }}>
@@ -67,7 +68,7 @@ export default function Navbar({ userName, credits, isAdmin }: NavbarProps) {
 
         {/* ── DESKTOP: right side ── */}
         <div id="desktop-actions" style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexShrink: 0 }}>
-          {/* WhatsApp button */}
+          {/* WhatsApp channel button */}
           <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" style={{
             display: "flex", alignItems: "center", gap: "0.4rem",
             background: "rgb(95, 167, 121)", border: "1.5px solid rgba(107, 158, 126, 0.5)",
@@ -76,6 +77,16 @@ export default function Navbar({ userName, credits, isAdmin }: NavbarProps) {
           }}>
             <WhatsAppIcon size={14} />
             واتساب
+          </a>
+          {/* WhatsApp direct number */}
+          <a href={WHATSAPP_DIRECT} target="_blank" rel="noopener noreferrer" style={{
+            display: "flex", alignItems: "center", gap: "0.4rem",
+            background: "rgb(95, 167, 121)", border: "1.5px solid rgba(107, 158, 126, 0.5)",
+            borderRadius: 8, padding: "0.4rem 0.75rem", color: "#fff",
+            textDecoration: "none", fontSize: "0.8rem", fontWeight: 600,
+          }}>
+            <WhatsAppIcon size={14} />
+            دعم
           </a>
 
           {isAdmin && (
@@ -98,10 +109,18 @@ export default function Navbar({ userName, credits, isAdmin }: NavbarProps) {
 
         {/* ── MOBILE: credits + hamburger ── */}
         <div id="mobile-actions" style={{ display: "none", alignItems: "center", gap: "0.5rem" }}>
-          {/* WhatsApp button mobile */}
+          {/* WhatsApp channel mobile */}
           <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" style={{
             display: "flex", alignItems: "center", justifyContent: "center",
             background: "rgba(37,211,102,0.2)", border: "1.5px solid rgba(37,211,102,0.5)",
+            borderRadius: 8, padding: "0.4rem 0.5rem", color: "#fff",
+          }}>
+            <WhatsAppIcon size={16} />
+          </a>
+          {/* WhatsApp direct mobile */}
+          <a href={WHATSAPP_DIRECT} target="_blank" rel="noopener noreferrer" style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(37,211,102,0.35)", border: "1.5px solid rgba(37,211,102,0.6)",
             borderRadius: 8, padding: "0.4rem 0.5rem", color: "#fff",
           }}>
             <WhatsAppIcon size={16} />
@@ -146,7 +165,17 @@ export default function Navbar({ userName, credits, isAdmin }: NavbarProps) {
             fontFamily: "Tajawal, sans-serif",
           }}>
             <WhatsAppIcon size={16} />
-            تواصل عبر واتساب
+            قناة واتساب
+          </a>
+          <a href={WHATSAPP_DIRECT} target="_blank" rel="noopener noreferrer" style={{
+            display: "flex", alignItems: "center", gap: "0.5rem",
+            background: "rgb(95, 167, 121)", border: "1.5px solid rgba(107, 158, 126, 0.5)",
+            borderRadius: 10, padding: "0.75rem 1rem", color: "#fff",
+            textDecoration: "none", fontSize: "0.875rem", fontWeight: 700,
+            fontFamily: "Tajawal, sans-serif",
+          }}>
+            <WhatsAppIcon size={16} />
+            تواصل مباشر +962 78 153 5553
           </a>
           <button onClick={() => { handleLogout(); setMenuOpen(false); }} style={{
             display: "flex", alignItems: "center", gap: "0.5rem",

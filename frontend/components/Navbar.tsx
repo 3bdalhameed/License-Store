@@ -10,10 +10,7 @@ const WhatsAppIcon = ({ size = 14 }: { size?: number }) => (
 );
 
 // Update these to your contact details
-const WHATSAPP_NUMBER = "966500000000";
-const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`;
-const TELEGRAM_USERNAME = "yourusername"; // Update to your Telegram username
-const TELEGRAM_URL = `https://t.me/${TELEGRAM_USERNAME}`;
+const WHATSAPP_URL = `https://whatsapp.com/channel/0029Vb7a54NEKyZ95xH04k0v`;
 
 const TelegramIcon = ({ size = 14 }: { size?: number }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: size, height: size, flexShrink: 0 }}>
@@ -80,16 +77,6 @@ export default function Navbar({ userName, credits, isAdmin }: NavbarProps) {
             <WhatsAppIcon size={14} />
             واتساب
           </a>
-          {/* Telegram button */}
-          <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" style={{
-            display: "flex", alignItems: "center", gap: "0.4rem",
-            background: "rgba(41,182,246)", border: "1.5px solid rgba(41,182,246,0.5)",
-            borderRadius: 8, padding: "0.4rem 0.75rem", color: "#fff",
-            textDecoration: "none", fontSize: "0.8rem", fontWeight: 600,
-          }}>
-            <TelegramIcon size={14} />
-            تيليجرام
-          </a>
 
           {isAdmin && (
             <span style={{ background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", color: "#fff", fontSize: "0.7rem", fontWeight: 700, padding: "0.25rem 0.75rem", borderRadius: 20 }}>
@@ -119,14 +106,7 @@ export default function Navbar({ userName, credits, isAdmin }: NavbarProps) {
           }}>
             <WhatsAppIcon size={16} />
           </a>
-          {/* Telegram button mobile */}
-          <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" style={{
-            display: "flex", alignItems: "center", justifyContent: "center",
-            background: "rgba(41,182,246,0.2)", border: "1.5px solid rgba(41,182,246,0.5)",
-            borderRadius: 8, padding: "0.4rem 0.5rem", color: "#fff",
-          }}>
-            <TelegramIcon size={16} />
-          </a>
+
 
           {credits !== undefined && (
             <div style={{ background: credits < 0 ? "rgba(255,60,60,0.25)" : "rgba(255,255,255,0.15)", border: `1.5px solid ${credits < 0 ? "rgba(255,100,100,0.5)" : "rgba(255,255,255,0.3)"}`, borderRadius: 20, padding: "0.25rem 0.75rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
@@ -167,16 +147,6 @@ export default function Navbar({ userName, credits, isAdmin }: NavbarProps) {
           }}>
             <WhatsAppIcon size={16} />
             تواصل عبر واتساب
-          </a>
-          <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" style={{
-            display: "flex", alignItems: "center", gap: "0.5rem",
-            background: "rgba(41,182,246,0.2)", border: "1.5px solid rgba(41,182,246,0.4)",
-            borderRadius: 10, padding: "0.75rem 1rem", color: "#fff",
-            textDecoration: "none", fontSize: "0.875rem", fontWeight: 700,
-            fontFamily: "Tajawal, sans-serif",
-          }}>
-            <TelegramIcon size={16} />
-            تواصل عبر تيليجرام
           </a>
           <button onClick={() => { handleLogout(); setMenuOpen(false); }} style={{
             display: "flex", alignItems: "center", gap: "0.5rem",

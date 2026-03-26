@@ -61,6 +61,7 @@ export default function AdminPage() {
   const [creditUserId, setCreditUserId] = useState<string | null>(null);
   const [creditAmount, setCreditAmount] = useState(""); const [creditNote, setCreditNote] = useState(""); const [adjusting, setAdjusting] = useState(false);
   const [editCustomerId, setEditCustomerId] = useState<string | null>(null); const [editCustomerName, setEditCustomerName] = useState(""); const [editCustomerEmail, setEditCustomerEmail] = useState(""); const [editCustomerPassword, setEditCustomerPassword] = useState(""); const [savingCustomer, setSavingCustomer] = useState(false); const [editCustomerError, setEditCustomerError] = useState<string | null>(null);
+  const [customerSearch, setCustomerSearch] = useState("");
   const [completeOrderId, setCompleteOrderId] = useState<string | null>(null);
   const [resultDetails, setResultDetails] = useState(""); const [completing, setCompleting] = useState(false);
   const [rejectOrderId, setRejectOrderId] = useState<string | null>(null);
@@ -637,8 +638,27 @@ export default function AdminPage() {
               )}
             </div>
 
-            {customers.length === 0 && <div style={{ ...card, padding: "2rem", textAlign: "center", color: "#9ca3af" }}>لا يوجد عملاء بعد</div>}
-            {customers.map(c => (
+            {/* Search */}
+            <div style={{ position: "relative" as const }}>
+              <input
+                value={customerSearch}
+                onChange={e => setCustomerSearch(e.target.value)}
+                placeholder={`بحث في ${customers.length} عميل...`}
+                style={{ ...inp, paddingRight: "2.5rem" }}
+              />
+              {customerSearch && (
+                <button onClick={() => setCustomerSearch("")} style={{ position: "absolute" as const, left: "0.75rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: "1.1rem", lineHeight: 1 }}>×</button>
+              )}
+            </div>
+
+            {(() => {
+              const filtered = customers.filter(c =>
+                c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+                c.email.toLowerCase().includes(customerSearch.toLowerCase())
+              );
+              return <>
+                {filtered.length === 0 && <div style={{ ...card, padding: "2rem", textAlign: "center", color: "#9ca3af" }}>{customerSearch ? `لا نتائج لـ "${customerSearch}"` : "لا يوجد عملاء بعد"}</div>}
+                {filtered.map(c => (
               <React.Fragment key={c.id}>
                 <div style={{ ...card, padding: "1rem" }}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
@@ -684,6 +704,8 @@ export default function AdminPage() {
                 </div>
               </React.Fragment>
             ))}
+              </>;
+            })()}
           </div>
         )}
 

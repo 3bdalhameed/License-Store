@@ -55,6 +55,7 @@ export default function DashboardPage() {
   const [emailInputs, setEmailInputs] = useState<string[]>([""]);
   const [buyingManual, setBuyingManual] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
+  const [productSearch, setProductSearch] = useState("");
   const sliderRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const dragState = useRef<{ id: string; startX: number; scrollLeft: number; dragging: boolean } | null>(null);
   const hasDragged = useRef(false);
@@ -252,6 +253,10 @@ export default function DashboardPage() {
 
         {/* ── Shop tab ── */}
         {tab === "shop" && (() => {
+          const searchTrimmed = productSearch.trim().toLowerCase();
+          const filteredProducts = searchTrimmed
+            ? products.filter(p => p.name.toLowerCase().includes(searchTrimmed) || p.description?.toLowerCase().includes(searchTrimmed))
+            : null;
           const categories = Array.from(new Set(products.map(p => p.categoryName).filter(Boolean))) as string[];
           const uncategorized = products.filter(p => !p.categoryName);
 
@@ -375,9 +380,35 @@ export default function DashboardPage() {
           );
 
           return (
-            <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
-              {categories.map(cat => renderSection(cat, cat, products.filter(p => p.categoryName === cat)))}
-              {uncategorized.length > 0 && renderSection("__uncategorized__", categories.length > 0 ? "منتجات أخرى" : "المنتجات", uncategorized)}
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              {/* Search bar */}
+              <div style={{ position: "relative" as const }}>
+                <span style={{ position: "absolute" as const, right: "0.85rem", top: "50%", transform: "translateY(-50%)", fontSize: "1rem", pointerEvents: "none" }}>🔍</span>
+                <input
+                  value={productSearch}
+                  onChange={e => setProductSearch(e.target.value)}
+                  placeholder="ابحث عن منتج..."
+                  style={{ width: "100%", padding: "0.75rem 2.5rem 0.75rem 2.5rem", background: "#fff", border: "1.5px solid rgba(112,45,255,0.2)", borderRadius: 14, color: "#111", fontSize: "0.9rem", outline: "none", fontFamily: "Tajawal, sans-serif", boxSizing: "border-box" as const, boxShadow: "0 2px 12px rgba(112,45,255,0.07)" }}
+                  onFocus={e => e.target.style.borderColor = "#702dff"}
+                  onBlur={e => e.target.style.borderColor = "rgba(112,45,255,0.2)"}
+                />
+                {productSearch && (
+                  <button onClick={() => setProductSearch("")} style={{ position: "absolute" as const, left: "0.85rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: "1.1rem", lineHeight: 1 }}>×</button>
+                )}
+              </div>
+
+              {filteredProducts ? (
+                filteredProducts.length === 0
+                  ? <div style={{ textAlign: "center", padding: "3rem", color: "#9ca3af", background: "#fff", borderRadius: 16 }}>لا توجد نتائج لـ &ldquo;{productSearch}&rdquo;</div>
+                  : <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "0.75rem" }}>
+                      {filteredProducts.map((p, i) => renderProductCard(p, i))}
+                    </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+                  {categories.map(cat => renderSection(cat, cat, products.filter(p => p.categoryName === cat)))}
+                  {uncategorized.length > 0 && renderSection("__uncategorized__", categories.length > 0 ? "منتجات أخرى" : "المنتجات", uncategorized)}
+                </div>
+              )}
             </div>
           );
         })()}

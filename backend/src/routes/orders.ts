@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
+import { markKeyAsSoldInSheet } from "../services/sheetsSync";
 
 const router = Router();
 router.use(requireAuth);
@@ -89,6 +90,11 @@ router.post("/", async (req: AuthRequest, res: Response) => {
       });
       return createdOrders;
     });
+
+    // Mark keys as sold in Google Sheet (fire-and-forget, don't block response)
+    for (const order of orders) {
+      markKeyAsSoldInSheet(order.licenseKey.key, product.name, product.productNumber).catch(() => {});
+    }
 
     return res.status(201).json({
       orders,

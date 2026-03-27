@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "ديجيتال بلس",
   description: "Digital license key store",
   icons: {
-    icon: "/logo.png",
+    icon: "/logo-tab.png",
   },
   robots: {
     index: false,

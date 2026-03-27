@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "ديجيتال بلس",
   description: "Digital license key store",
+  icons: {
+    icon: "/logo.png",
+  },
   robots: {
     index: false,
     follow: false,

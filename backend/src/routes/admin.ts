@@ -285,6 +285,17 @@ router.delete("/customers/:id", async (req: AuthRequest, res: Response) => {
   return res.json({ success: true });
 });
 
+// PATCH /api/admin/products/:id/toggle-active
+router.patch("/products/:id/toggle-active", async (req: AuthRequest, res: Response) => {
+  const product = await prisma.product.findUnique({ where: { id: req.params.id } });
+  if (!product) return res.status(404).json({ error: "Product not found" });
+  const updated = await prisma.product.update({
+    where: { id: req.params.id },
+    data: { isActive: !product.isActive },
+  });
+  return res.json(updated);
+});
+
 // PATCH /api/admin/products/:id/toggle-requires-email
 router.patch("/products/:id/toggle-requires-email", async (req: AuthRequest, res: Response) => {
   const product = await (prisma.product as any).findUnique({ where: { id: req.params.id } });
@@ -326,11 +337,14 @@ router.patch("/products/:id/price", async (req: AuthRequest, res: Response) => {
 // PATCH /api/admin/products/:id/manual-stock
 router.patch("/products/:id/manual-stock", async (req: AuthRequest, res: Response) => {
   try {
-    const schema = z.object({ amount: z.number().int().min(1) });
+    const schema = z.object({ amount: z.number().int().refine(v => v !== 0, { message: "Amount cannot be zero" }) });
     const { amount } = schema.parse(req.body);
+    const product = await (prisma.product as any).findUnique({ where: { id: req.params.id } });
+    if (!product) return res.status(404).json({ error: "Product not found" });
+    const newStock = Math.max(0, (product.manualStock || 0) + amount);
     const updated = await (prisma.product as any).update({
       where: { id: req.params.id },
-      data: { manualStock: { increment: amount } },
+      data: { manualStock: newStock },
     });
     return res.json(updated);
   } catch (err) {

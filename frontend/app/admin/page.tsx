@@ -9,17 +9,18 @@ import {
   getPendingRegistrations, approveRegistration, rejectRegistration, updateProductInstructions,
   getCategories, createCategory, deleteCategory, updateProductCategory, reorderProducts,
   reorderCategories, toggleRequiresEmail, updateProduct, deleteProduct, updateCustomer,
+  toggleProductActive,
 } from "@/lib/api";
 import Navbar from "@/components/Navbar";
 import {
   Users, ShoppingBag, RefreshCw, Plus, Trash2, Loader2, ChevronUp, ChevronDown,
-  Package, AlertCircle, Check, KeyRound, Zap, Clock, Edit2, BarChart2, UserCheck, FileText, Tag,
+  Package, AlertCircle, Check, KeyRound, Zap, Clock, Edit2, BarChart2, UserCheck, FileText, Tag, Eye, EyeOff, Minus,
 } from "lucide-react";
 
 interface User { id: string; name: string; email: string; credits: number; createdAt: string; }
 interface PendingUser { id: string; name: string; email: string; phone?: string; storeLink?: string; createdAt: string; }
 interface Order { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; user: { name: string; email: string }; product: { name: string }; licenseKey: { key: string }; }
-interface Product { id: string; productNumber?: number; name: string; description?: string; activationInstructions?: string; priceInCredits: number; availableKeys: number; totalSold?: number | null; isManual: boolean; requiresEmail: boolean; categoryId?: string | null; categoryName?: string | null; }
+interface Product { id: string; productNumber?: number; name: string; description?: string; activationInstructions?: string; priceInCredits: number; availableKeys: number; totalSold?: number | null; isManual: boolean; requiresEmail: boolean; isActive: boolean; categoryId?: string | null; categoryName?: string | null; }
 interface ManualOrder { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; emails: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED"; resultDetails?: string; user: { name: string; email: string }; product: { name: string }; }
 interface Stats { totalCustomers: number; totalOrders: number; pendingManualOrders: number; totalProducts: number; totalRevenue: number; }
 interface Category { id: string; name: string; sortOrder?: number; _count: { products: number }; }
@@ -68,6 +69,8 @@ export default function AdminPage() {
   const [rejectReason, setRejectReason] = useState(""); const [rejecting, setRejecting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [togglingRequiresEmailId, setTogglingRequiresEmailId] = useState<string | null>(null);
+  const [togglingActiveId, setTogglingActiveId] = useState<string | null>(null);
+  const [reduceStockId, setReduceStockId] = useState<string | null>(null); const [reduceStockVal, setReduceStockVal] = useState(""); const [reducingStock, setReducingStock] = useState(false); const [reduceStockMsg, setReduceStockMsg] = useState<string | null>(null);
   const [editPriceId, setEditPriceId] = useState<string | null>(null); const [editPriceVal, setEditPriceVal] = useState("");
   const [manualStockId, setManualStockId] = useState<string | null>(null); const [manualStockVal, setManualStockVal] = useState(""); const [addingStock, setAddingStock] = useState(false); const [stockMsg, setStockMsg] = useState<string | null>(null);
   const [editInstructionsId, setEditInstructionsId] = useState<string | null>(null); const [instructionsVal, setInstructionsVal] = useState(""); const [savingInstructions, setSavingInstructions] = useState(false);
@@ -260,6 +263,26 @@ export default function AdminPage() {
     catch (err: any) { setError(err.response?.data?.error || "فشل"); }
     finally { setTogglingId(null); }
   };
+
+  const handleToggleActive = async (id: string) => {
+    setTogglingActiveId(id);
+    try { await toggleProductActive(id); setProducts((await getProducts()).data); }
+    catch (err: any) { setError(err.response?.data?.error || "فشل"); }
+    finally { setTogglingActiveId(null); }
+  };
+
+  const handleReduceManualStock = async (e: React.FormEvent, productId: string) => {
+    e.preventDefault(); const amount = parseInt(reduceStockVal); if (!amount || amount < 1) return;
+    setReducingStock(true); setReduceStockMsg(null);
+    try {
+      await addManualStock(productId, -amount);
+      setReduceStockMsg(`تم تخفيض ${amount}`); setReduceStockVal("");
+      setProducts((await getProducts()).data);
+      setTimeout(() => { setReduceStockMsg(null); setReduceStockId(null); }, 3000);
+    } catch { setReduceStockMsg("خطأ"); }
+    finally { setReducingStock(false); }
+  };
+
 
   const handleUpdatePrice = async (id: string) => {
     const price = parseFloat(editPriceVal);
@@ -778,6 +801,9 @@ export default function AdminPage() {
                             {p.requiresEmail ? "📧 إيميل" : "📦 بدون إيميل"}
                           </button>
                         )}
+                        <button onClick={() => handleToggleActive(p.id)} disabled={togglingActiveId === p.id} title={p.isActive ? "إخفاء المنتج" : "إظهار المنتج"} style={{ background: p.isActive ? "#f0fdf4" : "#fff7ed", border: `1px solid ${p.isActive ? "#86efac" : "#fdba74"}`, color: p.isActive ? "#16a34a" : "#ea580c", borderRadius: 8, padding: "0.3rem 0.45rem", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                          {togglingActiveId === p.id ? <Loader2 style={{ width: 13, height: 13, animation: "spin 1s linear infinite" }} /> : p.isActive ? <Eye style={{ width: 13, height: 13 }} /> : <EyeOff style={{ width: 13, height: 13 }} />}
+                        </button>
                         <button onClick={() => handleDeleteProduct(p.id, p.name)} disabled={deletingProductId === p.id} style={{ background: "#fff5f5", border: "1px solid #fecaca", color: "#dc2626", borderRadius: 8, padding: "0.3rem 0.45rem", cursor: "pointer", display: "flex", alignItems: "center" }}>
                           {deletingProductId === p.id ? <Loader2 style={{ width: 13, height: 13, animation: "spin 1s linear infinite" }} /> : <Trash2 style={{ width: 13, height: 13 }} />}
                         </button>
@@ -823,9 +849,14 @@ export default function AdminPage() {
                     )}
 
                     {p.isManual ? (
-                      <button onClick={() => { setManualStockId(manualStockId === p.id ? null : p.id); setManualStockVal(""); setStockMsg(null); }} style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", borderRadius: 8, padding: "0.35rem 0.7rem", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                        <Plus style={{ width: 12, height: 12 }} />مخزون
-                      </button>
+                      <>
+                        <button onClick={() => { setManualStockId(manualStockId === p.id ? null : p.id); setManualStockVal(""); setStockMsg(null); setReduceStockId(null); }} style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", borderRadius: 8, padding: "0.35rem 0.7rem", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                          <Plus style={{ width: 12, height: 12 }} />مخزون
+                        </button>
+                        <button onClick={() => { setReduceStockId(reduceStockId === p.id ? null : p.id); setReduceStockVal(""); setReduceStockMsg(null); setManualStockId(null); }} style={{ background: "#fff7ed", border: "1px solid #fdba74", color: "#ea580c", borderRadius: 8, padding: "0.35rem 0.7rem", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                          <Minus style={{ width: 12, height: 12 }} />تخفيض
+                        </button>
+                      </>
                     ) : (
                       <button onClick={() => { setAddKeysProductId(addKeysProductId === p.id ? null : p.id); setKeysInput(""); setKeysMsg(null); }} style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", borderRadius: 8, padding: "0.35rem 0.7rem", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "0.3rem" }}>
                         <KeyRound style={{ width: 12, height: 12 }} />مفاتيح
@@ -884,6 +915,15 @@ export default function AdminPage() {
                       <button type="submit" disabled={addingStock} style={{ ...btnP, padding: "0.6rem 1rem" }}>{addingStock ? <Loader2 style={{ width: 13, height: 13, animation: "spin 1s linear infinite" }} /> : <Check style={{ width: 13, height: 13 }} />}إضافة</button>
                       <button type="button" onClick={() => setManualStockId(null)} style={{ background: "none", border: "none", color: "#9ca3af", cursor: "pointer" }}>إلغاء</button>
                       {stockMsg && <span style={{ fontSize: "0.75rem", color: stockMsg.startsWith("خطأ") ? "#dc2626" : "#16a34a" }}>{stockMsg}</span>}
+                    </form>
+                  )}
+
+                  {reduceStockId === p.id && (
+                    <form onSubmit={e => handleReduceManualStock(e, p.id)} style={{ marginTop: "0.75rem", display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" as const, background: "#fff7ed", padding: "0.75rem", borderRadius: 10, border: "1px solid #fdba74" }}>
+                      <input type="number" min="1" step="1" value={reduceStockVal} onChange={e => setReduceStockVal(e.target.value)} placeholder="عدد" required style={{ ...inp, width: 90 }} />
+                      <button type="submit" disabled={reducingStock} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", background: "#ea580c", border: "none", borderRadius: 10, padding: "0.6rem 1rem", color: "#fff", fontFamily: "Tajawal, sans-serif", fontWeight: 700, fontSize: "0.875rem", cursor: "pointer" }}>{reducingStock ? <Loader2 style={{ width: 13, height: 13, animation: "spin 1s linear infinite" }} /> : <Minus style={{ width: 13, height: 13 }} />}تخفيض</button>
+                      <button type="button" onClick={() => setReduceStockId(null)} style={{ background: "none", border: "none", color: "#9ca3af", cursor: "pointer" }}>إلغاء</button>
+                      {reduceStockMsg && <span style={{ fontSize: "0.75rem", color: reduceStockMsg.startsWith("خطأ") ? "#dc2626" : "#16a34a" }}>{reduceStockMsg}</span>}
                     </form>
                   )}
 

@@ -149,6 +149,9 @@ export const reorderCategories = (items: { id: string; sortOrder: number }[]) =>
 export const toggleRequiresEmail = (id: string) =>
   api.patch(`/api/admin/products/${id}/toggle-requires-email`);
 
+export const toggleProductActive = (id: string) =>
+  api.patch(`/api/admin/products/${id}/toggle-active`);
+
 export const updateProduct = (id: string, data: { name?: string; description?: string }) =>
   api.patch(`/api/admin/products/${id}`, data);
 

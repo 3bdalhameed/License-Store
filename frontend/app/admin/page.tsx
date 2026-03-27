@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
 import { useRouter } from "next/navigation";
 import {
   getMe, getCustomers, createCustomer, deleteCustomer, adjustCredits, getAllOrders,
@@ -14,7 +15,7 @@ import {
 import Navbar from "@/components/Navbar";
 import {
   Users, ShoppingBag, RefreshCw, Plus, Trash2, Loader2, ChevronUp, ChevronDown,
-  Package, AlertCircle, Check, KeyRound, Zap, Clock, Edit2, BarChart2, UserCheck, FileText, Tag, Eye, EyeOff, Minus,
+  Package, AlertCircle, Check, KeyRound, Zap, Clock, Edit2, BarChart2, UserCheck, FileText, Tag, Eye, EyeOff, Minus, FileDown,
 } from "lucide-react";
 
 interface User { id: string; name: string; email: string; credits: number; createdAt: string; }
@@ -262,6 +263,40 @@ export default function AdminPage() {
     try { await toggleManualProduct(id); setProducts((await getProducts()).data); }
     catch (err: any) { setError(err.response?.data?.error || "فشل"); }
     finally { setTogglingId(null); }
+  };
+
+  const exportOrdersToExcel = () => {
+    const rows = orders.map(o => ({
+      "#": orderNum(o) ?? "",
+      "المنتج": o.product.name,
+      "العميل": o.user.name,
+      "الإيميل": o.user.email,
+      "المفتاح": o.licenseKey.key,
+      "الرصيد": o.creditsCost,
+      "التاريخ": new Date(o.createdAt).toLocaleString("ar-EG"),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "الطلبات");
+    XLSX.writeFile(wb, `orders-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const exportManualOrdersToExcel = () => {
+    const rows = manualOrders.map(o => ({
+      "#": orderNum(o) ?? "",
+      "المنتج": o.product.name,
+      "العميل": o.user.name,
+      "الإيميل": o.user.email,
+      "الإيميلات المطلوبة": o.emails,
+      "الحالة": o.status,
+      "التفاصيل": o.resultDetails ?? "",
+      "الرصيد": o.creditsCost,
+      "التاريخ": new Date(o.createdAt).toLocaleString("ar-EG"),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "الطلبات اليدوية");
+    XLSX.writeFile(wb, `manual-orders-${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   const handleToggleActive = async (id: string) => {
@@ -735,6 +770,13 @@ export default function AdminPage() {
         {/* ── Orders ── */}
         {tab === "orders" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {orders.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button onClick={exportOrdersToExcel} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "#f0fdf4", border: "1px solid #86efac", color: "#16a34a", borderRadius: 10, padding: "0.5rem 1rem", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", fontFamily: "Tajawal, sans-serif" }}>
+                  <FileDown style={{ width: 14, height: 14 }} />تصدير Excel
+                </button>
+              </div>
+            )}
             {orders.length === 0 && <div style={{ ...card, padding: "2rem", textAlign: "center", color: "#9ca3af" }}>لا توجد طلبات</div>}
             {orders.map(o => (
               <div key={o.id} style={{ ...card, padding: "1rem" }}>
@@ -985,6 +1027,13 @@ export default function AdminPage() {
         {/* ── Manual Orders ── */}
         {tab === "manual" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {manualOrders.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button onClick={exportManualOrdersToExcel} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "#f0fdf4", border: "1px solid #86efac", color: "#16a34a", borderRadius: 10, padding: "0.5rem 1rem", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", fontFamily: "Tajawal, sans-serif" }}>
+                  <FileDown style={{ width: 14, height: 14 }} />تصدير Excel
+                </button>
+              </div>
+            )}
             {manualOrders.length === 0 && (
               <div style={{ ...card, padding: "2rem", textAlign: "center", color: "#9ca3af" }}>
                 <Clock style={{ width: 32, height: 32, margin: "0 auto 0.5rem", opacity: 0.3 }} />

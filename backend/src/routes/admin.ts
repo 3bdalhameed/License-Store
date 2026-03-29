@@ -101,7 +101,7 @@ router.post("/customers", async (req: AuthRequest, res: Response) => {
 router.get("/customers", async (_req: AuthRequest, res: Response) => {
   const customers = await prisma.user.findMany({
     where: { role: "CUSTOMER", status: "ACTIVE" },
-    select: { id: true, email: true, name: true, credits: true, createdAt: true },
+    select: { id: true, email: true, name: true, credits: true, allowDebt: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
   return res.json(customers);
@@ -257,8 +257,9 @@ router.patch("/customers/:id", async (req: AuthRequest, res: Response) => {
       name: z.string().min(1).optional(),
       email: z.string().email().optional(),
       password: z.string().min(6).optional(),
+      allowDebt: z.boolean().optional(),
     });
-    const { name, email, password } = schema.parse(req.body);
+    const { name, email, password, allowDebt } = schema.parse(req.body);
     const data: any = {};
     if (name) data.name = name;
     if (email) {
@@ -267,10 +268,11 @@ router.patch("/customers/:id", async (req: AuthRequest, res: Response) => {
       data.email = email;
     }
     if (password) data.password = await bcrypt.hash(password, 10);
+    if (allowDebt !== undefined) data.allowDebt = allowDebt;
     const updated = await prisma.user.update({
       where: { id: req.params.id },
       data,
-      select: { id: true, email: true, name: true, credits: true, createdAt: true },
+      select: { id: true, email: true, name: true, credits: true, allowDebt: true, createdAt: true },
     });
     return res.json(updated);
   } catch (err) {

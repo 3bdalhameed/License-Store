@@ -18,6 +18,7 @@ model User {
   role         Role          @default(CUSTOMER)
   status       UserStatus    @default(ACTIVE)
   credits             Float         @default(0)
+  allowDebt           Boolean       @default(false)
   failedLoginAttempts Int           @default(0)
   lockedUntil         DateTime?
 

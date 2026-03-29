@@ -44,7 +44,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
     // Total cost = price × emails (or price × 1 if no email required)
     const emailCount = (product.requiresEmail !== false) ? emails.length : 1;
     const totalCost = product.priceInCredits * emailCount;
-    const DEBT_LIMIT = -20;
+    const DEBT_LIMIT = user.allowDebt ? -20 : 0;
     const balanceAfter = user.credits - totalCost;
 
     if (balanceAfter < DEBT_LIMIT) {

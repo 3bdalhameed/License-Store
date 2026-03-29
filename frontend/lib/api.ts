@@ -77,7 +77,7 @@ export const createCustomer = (data: {
 export const deleteCustomer = (id: string) =>
   api.delete(`/api/admin/customers/${id}`);
 
-export const updateCustomer = (id: string, data: { name?: string; email?: string; password?: string }) =>
+export const updateCustomer = (id: string, data: { name?: string; email?: string; password?: string; allowDebt?: boolean }) =>
   api.patch(`/api/admin/customers/${id}`, data);
 
 export const adjustCredits = (userId: string, amount: number, note?: string) =>

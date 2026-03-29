@@ -18,7 +18,7 @@ import {
   Package, AlertCircle, Check, KeyRound, Zap, Clock, Edit2, BarChart2, UserCheck, FileText, Tag, Eye, EyeOff, Minus, FileDown,
 } from "lucide-react";
 
-interface User { id: string; name: string; email: string; credits: number; createdAt: string; }
+interface User { id: string; name: string; email: string; credits: number; allowDebt: boolean; createdAt: string; }
 interface PendingUser { id: string; name: string; email: string; phone?: string; storeLink?: string; createdAt: string; }
 interface Order { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; user: { name: string; email: string }; product: { name: string }; licenseKey: { key: string }; }
 interface Product { id: string; productNumber?: number; name: string; description?: string; activationInstructions?: string; priceInCredits: number; availableKeys: number; totalSold?: number | null; isManual: boolean; requiresEmail: boolean; isActive: boolean; categoryId?: string | null; categoryName?: string | null; }
@@ -62,7 +62,7 @@ export default function AdminPage() {
   const [keysInput, setKeysInput] = useState(""); const [addingKeys, setAddingKeys] = useState(false); const [keysMsg, setKeysMsg] = useState<string | null>(null);
   const [creditUserId, setCreditUserId] = useState<string | null>(null);
   const [creditAmount, setCreditAmount] = useState(""); const [creditNote, setCreditNote] = useState(""); const [adjusting, setAdjusting] = useState(false);
-  const [editCustomerId, setEditCustomerId] = useState<string | null>(null); const [editCustomerName, setEditCustomerName] = useState(""); const [editCustomerEmail, setEditCustomerEmail] = useState(""); const [editCustomerPassword, setEditCustomerPassword] = useState(""); const [savingCustomer, setSavingCustomer] = useState(false); const [editCustomerError, setEditCustomerError] = useState<string | null>(null);
+  const [editCustomerId, setEditCustomerId] = useState<string | null>(null); const [editCustomerName, setEditCustomerName] = useState(""); const [editCustomerEmail, setEditCustomerEmail] = useState(""); const [editCustomerPassword, setEditCustomerPassword] = useState(""); const [editCustomerAllowDebt, setEditCustomerAllowDebt] = useState(false); const [savingCustomer, setSavingCustomer] = useState(false); const [editCustomerError, setEditCustomerError] = useState<string | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
   const [completeOrderId, setCompleteOrderId] = useState<string | null>(null);
   const [resultDetails, setResultDetails] = useState(""); const [completing, setCompleting] = useState(false);
@@ -214,10 +214,11 @@ export default function AdminPage() {
   const handleEditCustomer = async (e: React.FormEvent, id: string) => {
     e.preventDefault(); setSavingCustomer(true); setEditCustomerError(null);
     try {
-      const data: { name?: string; email?: string; password?: string } = {};
+      const data: { name?: string; email?: string; password?: string; allowDebt?: boolean } = {};
       if (editCustomerName.trim()) data.name = editCustomerName.trim();
       if (editCustomerEmail.trim()) data.email = editCustomerEmail.trim();
       if (editCustomerPassword.trim()) data.password = editCustomerPassword.trim();
+      data.allowDebt = editCustomerAllowDebt;
       await updateCustomer(id, data);
       setEditCustomerId(null); setEditCustomerPassword("");
       setCustomers((await getCustomers()).data);
@@ -726,7 +727,7 @@ export default function AdminPage() {
                       <span style={{ display: "inline-block", marginTop: "0.4rem", background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", fontSize: "0.75rem", fontWeight: 700, padding: "0.2rem 0.65rem", borderRadius: 20 }}>${c.credits} رصيد</span>
                     </div>
                     <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0, marginRight: "0.5rem" }}>
-                      <button onClick={() => { setEditCustomerId(editCustomerId === c.id ? null : c.id); setEditCustomerName(c.name); setEditCustomerEmail(c.email); setEditCustomerPassword(""); setEditCustomerError(null); }} style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                      <button onClick={() => { setEditCustomerId(editCustomerId === c.id ? null : c.id); setEditCustomerName(c.name); setEditCustomerEmail(c.email); setEditCustomerPassword(""); setEditCustomerAllowDebt(c.allowDebt); setEditCustomerError(null); }} style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", borderRadius: 8, padding: "0.4rem 0.5rem", cursor: "pointer", display: "flex", alignItems: "center" }}>
                         <Edit2 style={{ width: 14, height: 14 }} />
                       </button>
                       <button onClick={() => setCreditUserId(creditUserId === c.id ? null : c.id)} style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", borderRadius: 8, padding: "0.4rem 0.65rem", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", fontFamily: "Tajawal, sans-serif" }}>رصيد</button>
@@ -741,6 +742,10 @@ export default function AdminPage() {
                       <input value={editCustomerName} onChange={e => setEditCustomerName(e.target.value)} placeholder="الاسم الكامل" style={inp} />
                       <input type="email" value={editCustomerEmail} onChange={e => setEditCustomerEmail(e.target.value.toLowerCase())} placeholder="البريد الإلكتروني" style={inp} />
                       <input type="password" value={editCustomerPassword} onChange={e => setEditCustomerPassword(e.target.value)} placeholder="كلمة مرور جديدة (اتركها فارغة لعدم التغيير)" style={inp} />
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.82rem", color: "#374151", fontFamily: "Tajawal, sans-serif", padding: "0.4rem 0" }}>
+                        <input type="checkbox" checked={editCustomerAllowDebt} onChange={e => setEditCustomerAllowDebt(e.target.checked)} style={{ width: 15, height: 15, accentColor: "#702dff", cursor: "pointer" }} />
+                        السماح بالشراء بالدين (حتى -20)
+                      </label>
                       <div style={{ display: "flex", gap: "0.5rem" }}>
                         <button type="submit" disabled={savingCustomer} style={{ ...btnP, flex: 1, padding: "0.65rem" }}>{savingCustomer ? <Loader2 style={{ width: 13, height: 13, animation: "spin 1s linear infinite" }} /> : <Check style={{ width: 13, height: 13 }} />}{savingCustomer ? "جاري..." : "حفظ التغييرات"}</button>
                         <button type="button" onClick={() => setEditCustomerId(null)} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: "0.65rem 1rem", cursor: "pointer", color: "#6b7280", fontFamily: "Tajawal, sans-serif" }}>إلغاء</button>

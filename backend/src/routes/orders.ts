@@ -24,7 +24,7 @@ router.post("/", async (req: AuthRequest, res: Response) => {
     });
     if (!product) return res.status(404).json({ error: "Product not found" });
 
-    const DEBT_LIMIT = -20;
+    const DEBT_LIMIT = user.allowDebt ? -20 : 0;
     const totalCost = product.priceInCredits * quantity;
     const balanceAfter = user.credits - totalCost;
     if (balanceAfter < DEBT_LIMIT) {

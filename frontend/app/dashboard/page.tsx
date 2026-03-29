@@ -5,7 +5,7 @@ import { getMe, getProducts, buyProduct, getMyOrders, buyManualProduct, getMyMan
 import Navbar from "@/components/Navbar";
 import { Copy, Check, Loader2, AlertCircle, X, Plus, Minus, ShoppingBag, ClipboardList, History } from "lucide-react";
 
-interface User { id: string; name: string; email: string; role: string; credits: number; }
+interface User { id: string; name: string; email: string; role: string; credits: number; allowDebt: boolean; }
 interface Product { id: string; productNumber?: number; name: string; description?: string; activationInstructions?: string; priceInCredits: number; availableKeys: number; isManual: boolean; requiresEmail?: boolean; categoryId?: string | null; categoryName?: string | null; categorySortOrder?: number; }
 interface Order { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; product: { name: string }; licenseKey: { key: string }; }
 interface ManualOrder { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; emails: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED"; resultDetails?: string; product: { name: string }; }
@@ -18,7 +18,6 @@ const STATUS_MAP = {
   REJECTED:    { label: "مرفوض",           color: "#dc2626", bg: "#fff5f5", border: "#fecaca" },
 };
 
-const DEBT_LIMIT = -20;
 
 const GRADIENTS = [
   "linear-gradient(135deg, #702dff 0%, #a77fff 100%)",
@@ -123,8 +122,9 @@ export default function DashboardPage() {
     const qty = quantities[product.id] ?? 1;
     const totalCost = product.priceInCredits * qty;
     const balanceAfter = user.credits - totalCost;
-    if (balanceAfter < DEBT_LIMIT) {
-      setManualError(`رصيدك غير كافٍ — الحد الأقصى للدين هو $${Math.abs(DEBT_LIMIT)}`);
+    const debtLimit = user.allowDebt ? -20 : 0;
+    if (balanceAfter < debtLimit) {
+      setManualError(user.allowDebt ? `رصيدك غير كافٍ — الحد الأقصى للدين هو $20` : "رصيدك غير كافٍ");
       return;
     }
 
@@ -153,8 +153,9 @@ export default function DashboardPage() {
 
     const totalCost = needsEmail ? productModal.priceInCredits * validEmails.length : productModal.priceInCredits;
     const balanceAfter = user.credits - totalCost;
-    if (balanceAfter < DEBT_LIMIT) {
-      setManualError(`رصيدك غير كافٍ — الحد الأقصى للدين هو $${Math.abs(DEBT_LIMIT)}`);
+    const debtLimit = user.allowDebt ? -20 : 0;
+    if (balanceAfter < debtLimit) {
+      setManualError(user.allowDebt ? `رصيدك غير كافٍ — الحد الأقصى للدين هو $20` : "رصيدك غير كافٍ");
       return;
     }
 
@@ -213,10 +214,12 @@ export default function DashboardPage() {
         <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.85rem", marginTop: "0.3rem", position: "relative", zIndex: 1 }}>
           اكتشف أقوى الاشتراكات الرقمية
         </p>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", marginTop: "0.5rem", background: "rgba(255,220,50,0.15)", border: "1px solid rgba(255,220,50,0.35)", borderRadius: 8, padding: "0.35rem 0.75rem", position: "relative", zIndex: 1 }}>
-          <span style={{ fontSize: "0.8rem" }}>⚠️</span>
-          <span style={{ color: "rgba(255,255,200,0.95)", fontSize: "0.78rem", fontFamily: "Tajawal, sans-serif", fontWeight: 600 }}>يمكنك الشراء حتى رصيد سالب -${Math.abs(DEBT_LIMIT)}</span>
-        </div>
+        {user.allowDebt && (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", marginTop: "0.5rem", background: "rgba(255,220,50,0.15)", border: "1px solid rgba(255,220,50,0.35)", borderRadius: 8, padding: "0.35rem 0.75rem", position: "relative", zIndex: 1 }}>
+            <span style={{ fontSize: "0.8rem" }}>⚠️</span>
+            <span style={{ color: "rgba(255,255,200,0.95)", fontSize: "0.78rem", fontFamily: "Tajawal, sans-serif", fontWeight: 600 }}>يمكنك الشراء حتى رصيد سالب -$20</span>
+          </div>
+        )}
         {user.credits < 0 && (
           <div style={{ marginTop: "0.75rem", background: "rgba(255,60,60,0.2)", border: "1px solid rgba(255,100,100,0.4)", borderRadius: 10, padding: "0.6rem 0.85rem", position: "relative", zIndex: 1 }}>
             <p style={{ color: "#fecaca", fontSize: "0.82rem", margin: 0, fontFamily: "Tajawal, sans-serif" }}>
@@ -549,7 +552,7 @@ export default function DashboardPage() {
         const qty = quantities[p.id] ?? 1;
         const totalCost = p.priceInCredits * qty;
         const balanceAfter = user.credits - totalCost;
-        const wouldExceedDebt = balanceAfter < DEBT_LIMIT;
+        const wouldExceedDebt = balanceAfter < (user.allowDebt ? -20 : 0);
         const maxQty = Math.min(p.availableKeys, 20);
         const gradIdx = products.indexOf(p);
 
@@ -622,10 +625,12 @@ export default function DashboardPage() {
                 )}
 
                 {/* Debt limit notice */}
-                <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12, padding: "0.6rem 0.9rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <span style={{ fontSize: "0.85rem" }}>⚠️</span>
-                  <p style={{ fontSize: "0.8rem", color: "#92400e", margin: 0 }}>يمكنك الشراء حتى رصيد سالب <strong>-${Math.abs(DEBT_LIMIT)}</strong> — رصيدك الحالي: <strong style={{ color: user.credits < 0 ? "#dc2626" : "#16a34a" }}>${user.credits}</strong></p>
-                </div>
+                {user.allowDebt && (
+                  <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12, padding: "0.6rem 0.9rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ fontSize: "0.85rem" }}>⚠️</span>
+                    <p style={{ fontSize: "0.8rem", color: "#92400e", margin: 0 }}>يمكنك الشراء حتى رصيد سالب <strong>-$20</strong> — رصيدك الحالي: <strong style={{ color: user.credits < 0 ? "#dc2626" : "#16a34a" }}>${user.credits}</strong></p>
+                  </div>
+                )}
 
                 {/* ── Non-manual: qty + buy ── */}
                 {!p.isManual && (

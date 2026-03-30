@@ -100,6 +100,7 @@ model ManualOrder {
   productId         String
   creditsCost       Float
   emails            String            // comma-separated activation emails
+  note              String?           // optional note from buyer
   status            ManualOrderStatus @default(PENDING)
   resultDetails     String?           // filled by admin when completed
   createdAt         DateTime          @default(now())

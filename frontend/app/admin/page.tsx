@@ -22,7 +22,7 @@ interface User { id: string; name: string; email: string; credits: number; allow
 interface PendingUser { id: string; name: string; email: string; phone?: string; storeLink?: string; createdAt: string; }
 interface Order { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; user: { name: string; email: string }; product: { name: string }; licenseKey: { key: string }; }
 interface Product { id: string; productNumber?: number; name: string; description?: string; activationInstructions?: string; priceInCredits: number; availableKeys: number; totalSold?: number | null; isManual: boolean; requiresEmail: boolean; isActive: boolean; categoryId?: string | null; categoryName?: string | null; }
-interface ManualOrder { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; emails: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED"; resultDetails?: string; user: { name: string; email: string }; product: { name: string }; }
+interface ManualOrder { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; emails: string; note?: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED"; resultDetails?: string; user: { name: string; email: string }; product: { name: string }; }
 interface Stats { totalCustomers: number; totalOrders: number; pendingManualOrders: number; totalProducts: number; totalRevenue: number; }
 interface Category { id: string; name: string; sortOrder?: number; _count: { products: number }; }
 type Tab = "stats" | "customers" | "registrations" | "orders" | "products" | "manual" | "categories";
@@ -289,6 +289,7 @@ export default function AdminPage() {
       "العميل": o.user.name,
       "الإيميل": o.user.email,
       "الإيميلات المطلوبة": o.emails,
+      "ملاحظة العميل": o.note ?? "",
       "الحالة": o.status,
       "التفاصيل": o.resultDetails ?? "",
       "الرصيد": o.creditsCost,
@@ -1061,6 +1062,12 @@ export default function AdminPage() {
                 <div style={{ background: "#f9f9ff", borderRadius: 8, padding: "0.5rem 0.75rem", marginBottom: "0.6rem", fontSize: "0.78rem", color: "#374151" }}>
                   📧 {o.emails}
                 </div>
+                {o.note && (
+                  <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: "0.5rem 0.75rem", marginBottom: "0.6rem", fontSize: "0.78rem", color: "#92400e", display: "flex", gap: "0.4rem" }}>
+                    <span style={{ flexShrink: 0 }}>📝</span>
+                    <span>{o.note}</span>
+                  </div>
+                )}
 
                 {o.resultDetails && (
                   <div style={{ background: o.status === "REJECTED" ? "#fff5f5" : "#f0fdf4", border: `1px solid ${o.status === "REJECTED" ? "#fecaca" : "#86efac"}`, borderRadius: 8, padding: "0.6rem 0.75rem", marginBottom: "0.6rem" }}>

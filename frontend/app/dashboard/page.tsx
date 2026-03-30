@@ -8,7 +8,7 @@ import { Copy, Check, Loader2, AlertCircle, X, Plus, Minus, ShoppingBag, Clipboa
 interface User { id: string; name: string; email: string; role: string; credits: number; allowDebt: boolean; }
 interface Product { id: string; productNumber?: number; name: string; description?: string; activationInstructions?: string; priceInCredits: number; availableKeys: number; isManual: boolean; requiresEmail?: boolean; categoryId?: string | null; categoryName?: string | null; categorySortOrder?: number; }
 interface Order { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; product: { name: string }; licenseKey: { key: string }; }
-interface ManualOrder { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; emails: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED"; resultDetails?: string; product: { name: string }; }
+interface ManualOrder { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; emails: string; note?: string; status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED"; resultDetails?: string; product: { name: string }; }
 interface CreditLog { id: string; amount: number; type: "ADD" | "DEDUCT"; note?: string; createdAt: string; }
 
 const STATUS_MAP = {
@@ -54,6 +54,7 @@ export default function DashboardPage() {
   const [emailInputs, setEmailInputs] = useState<string[]>([""]);
   const [buyingManual, setBuyingManual] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
+  const [purchaseNote, setPurchaseNote] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const sliderRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const dragState = useRef<{ id: string; startX: number; scrollLeft: number; dragging: boolean } | null>(null);
@@ -161,10 +162,11 @@ export default function DashboardPage() {
 
     setBuyingManual(true); setManualError(null);
     try {
-      const res = await buyManualProduct(productModal.id, validEmails);
+      const res = await buyManualProduct(productModal.id, validEmails, purchaseNote.trim() || undefined);
       const [meRes, manualRes, creditsRes] = await Promise.all([getMe(), getMyManualOrders(), getMyCreditLogs()]);
       setUser(meRes.data); setManualOrders(manualRes.data); setCreditLogs(creditsRes.data); setProductModal(null);
       if (res.data.warning) setBuyWarning(res.data.warning);
+      setPurchaseNote("");
       setTab("orders");
     } catch (err: any) { setManualError(err.response?.data?.error || "فشل الشراء"); }
     finally { setBuyingManual(false); }
@@ -273,6 +275,7 @@ export default function DashboardPage() {
               setProductModal(p);
               setEmailInputs([""]);
               setManualError(null);
+              setPurchaseNote("");
               setQuantities(q => ({ ...q, [p.id]: q[p.id] ?? 1 }));
             };
 
@@ -315,7 +318,7 @@ export default function DashboardPage() {
                       backdropFilter: "blur(4px)", color: "#fff", fontSize: "0.58rem", fontWeight: 700,
                       padding: "0.1rem 0.5rem", borderRadius: 20, border: "1px solid rgba(255,255,255,0.15)",
                     }}>
-                      {p.isManual ? "📦 يدوي" : hasStock ? "⚡ فوري" : "نفذ"}
+                      {p.isManual ? (hasStock ? "📦 يدوي" : "نفذ") : hasStock ? "⚡ فوري" : "نفذ"}
                     </span>
                   </div>
 
@@ -445,9 +448,17 @@ export default function DashboardPage() {
                     <div style={{ fontSize: "0.75rem", color: "#9ca3af", marginBottom: "0.5rem" }}>
                       {new Date(mo.createdAt).toLocaleDateString("ar-EG")} · <span style={{ color: "#702dff", fontWeight: 700 }}>${mo.creditsCost} رصيد</span>
                     </div>
-                    <div style={{ background: "#f9f9ff", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: "0.78rem", color: "#374151" }}>
-                      📧 {mo.emails}
-                    </div>
+                    {mo.emails && (
+                      <div style={{ background: "#f9f9ff", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: "0.78rem", color: "#374151" }}>
+                        📧 {mo.emails}
+                      </div>
+                    )}
+                    {mo.note && (
+                      <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: "0.78rem", color: "#92400e", display: "flex", gap: "0.4rem" }}>
+                        <span style={{ flexShrink: 0 }}>📝</span>
+                        <span style={{ fontFamily: "Tajawal, sans-serif" }}>{mo.note}</span>
+                      </div>
+                    )}
                     {mo.resultDetails && mo.status === "COMPLETED" && (
                       <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 8, padding: "0.65rem 0.75rem", marginTop: "0.5rem" }}>
                         <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#16a34a", marginBottom: "0.3rem" }}>✅ تفاصيل التفعيل:</div>
@@ -585,7 +596,7 @@ export default function DashboardPage() {
                 {/* Stock + number badges */}
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem", position: "relative", zIndex: 1 }}>
                   <span style={{ background: hasStock ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.22)", backdropFilter: "blur(4px)", color: "#fff", fontSize: "0.65rem", fontWeight: 700, padding: "0.15rem 0.6rem", borderRadius: 20, border: "1px solid rgba(255,255,255,0.2)" }}>
-                    {p.isManual ? "📦 تسليم يدوي" : hasStock ? "⚡ تسليم فوري" : "نفذ المخزون"}
+                    {p.isManual ? (hasStock ? "📦 تسليم يدوي" : "🚫 نفذ المخزون") : hasStock ? "⚡ تسليم فوري" : "🚫 نفذ المخزون"}
                   </span>
                   {p.productNumber && <span style={{ background: "rgba(255,255,255,0.15)", color: "#fff", fontSize: "0.6rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: 20, fontFamily: "monospace", border: "1px solid rgba(255,255,255,0.15)" }}>#{p.productNumber}</span>}
                   {p.categoryName && <span style={{ background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)", fontSize: "0.6rem", fontWeight: 600, padding: "0.15rem 0.55rem", borderRadius: 20 }}>{p.categoryName}</span>}
@@ -657,6 +668,23 @@ export default function DashboardPage() {
                       </>
                     )}
 
+                    {/* Note field for automatic products */}
+                    {hasStock && (
+                      <div>
+                        <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase" as const, letterSpacing: "0.05em", marginBottom: "0.5rem" }}>ملاحظة <span style={{ fontWeight: 400, textTransform: "none" as const, color: "#c4b5fd" }}>(اختياري)</span></div>
+                        <textarea
+                          value={purchaseNote}
+                          onChange={e => setPurchaseNote(e.target.value)}
+                          placeholder="أضف أي ملاحظة هنا..."
+                          rows={2}
+                          maxLength={500}
+                          style={{ width: "100%", padding: "0.75rem 1rem", border: "1.5px solid #e5e7eb", borderRadius: 12, fontSize: "0.875rem", outline: "none", color: "#374151", fontFamily: "Tajawal, sans-serif", background: "#fafafa", resize: "none" as const, boxSizing: "border-box" as const, lineHeight: 1.6 }}
+                          onFocus={e => { e.target.style.borderColor = "#702dff"; e.target.style.background = "#fff"; }}
+                          onBlur={e => { e.target.style.borderColor = "#e5e7eb"; e.target.style.background = "#fafafa"; }}
+                        />
+                      </div>
+                    )}
+
                     {manualError && (
                       <div style={{ background: "#fff5f5", border: "1px solid #fecaca", color: "#dc2626", padding: "0.7rem 1rem", borderRadius: 12, fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                         <AlertCircle style={{ width: 15, height: 15, flexShrink: 0 }} />{manualError}
@@ -689,59 +717,91 @@ export default function DashboardPage() {
                   </>
                 )}
 
-                {/* ── Manual: email inputs + buy ── */}
+                {/* ── Manual: email inputs + note + buy ── */}
                 {p.isManual && (
                   <>
-                    {p.requiresEmail !== false && (
-                      <div>
-                        <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>البريد الإلكتروني للتفعيل</div>
-                        <div style={{ display: "flex", flexDirection: "column" as const, gap: "0.55rem" }}>
-                          {emailInputs.map((email, idx) => (
-                            <div key={idx} style={{ display: "flex", gap: "0.5rem" }}>
-                              <input
-                                type="email" value={email}
-                                onChange={e => { const arr = [...emailInputs]; arr[idx] = e.target.value.toLowerCase(); setEmailInputs(arr); }}
-                                placeholder={`البريد الإلكتروني ${idx + 1}`}
-                                style={{ flex: 1, padding: "0.75rem 1rem", border: "1.5px solid #e5e7eb", borderRadius: 12, fontSize: "0.9rem", outline: "none", color: "#111", fontFamily: "Tajawal, sans-serif" }}
-                                onFocus={e => e.target.style.borderColor = "#702dff"}
-                                onBlur={e => e.target.style.borderColor = "#e5e7eb"}
-                              />
-                              {emailInputs.length > 1 && (
-                                <button onClick={() => setEmailInputs(emailInputs.filter((_, i) => i !== idx))} style={{ width: 44, background: "#fff5f5", border: "1.5px solid #fecaca", borderRadius: 12, cursor: "pointer", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                  <Minus style={{ width: 14, height: 14 }} />
-                                </button>
-                              )}
-                            </div>
-                          ))}
+                    {!hasStock ? (
+                      /* Out of stock state */
+                      <div style={{ background: "linear-gradient(135deg, #f9fafb, #f3f4f6)", border: "1.5px solid #e5e7eb", borderRadius: 16, padding: "1.5rem", textAlign: "center", display: "flex", flexDirection: "column" as const, alignItems: "center", gap: "0.75rem" }}>
+                        <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#f3f4f6", border: "2px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.75rem" }}>🚫</div>
+                        <div>
+                          <div style={{ fontFamily: "Tajawal, sans-serif", fontWeight: 800, fontSize: "1rem", color: "#374151", marginBottom: "0.3rem" }}>نفذ المخزون</div>
+                          <div style={{ fontSize: "0.8rem", color: "#9ca3af", fontFamily: "Tajawal, sans-serif" }}>هذا المنتج غير متوفر حالياً، يرجى المراجعة لاحقاً</div>
                         </div>
-                        <button onClick={() => setEmailInputs([...emailInputs, ""])} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", borderRadius: 12, padding: "0.5rem 1rem", color: "#702dff", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer", marginTop: "0.55rem", fontFamily: "Tajawal, sans-serif", width: "100%", justifyContent: "center" }}>
-                          <Plus style={{ width: 14, height: 14 }} />إضافة إيميل آخر
+                      </div>
+                    ) : (
+                      <>
+                        {p.requiresEmail !== false && (
+                          <div>
+                            <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase" as const, letterSpacing: "0.05em", marginBottom: "0.5rem" }}>البريد الإلكتروني للتفعيل</div>
+                            <div style={{ display: "flex", flexDirection: "column" as const, gap: "0.55rem" }}>
+                              {emailInputs.map((email, idx) => (
+                                <div key={idx} style={{ display: "flex", gap: "0.5rem" }}>
+                                  <input
+                                    type="email" value={email}
+                                    onChange={e => { const arr = [...emailInputs]; arr[idx] = e.target.value.toLowerCase(); setEmailInputs(arr); }}
+                                    placeholder={`البريد الإلكتروني ${idx + 1}`}
+                                    style={{ flex: 1, padding: "0.75rem 1rem", border: "1.5px solid #e5e7eb", borderRadius: 12, fontSize: "0.9rem", outline: "none", color: "#111", fontFamily: "Tajawal, sans-serif", background: "#fafafa" }}
+                                    onFocus={e => { e.target.style.borderColor = "#702dff"; e.target.style.background = "#fff"; }}
+                                    onBlur={e => { e.target.style.borderColor = "#e5e7eb"; e.target.style.background = "#fafafa"; }}
+                                  />
+                                  {emailInputs.length > 1 && (
+                                    <button onClick={() => setEmailInputs(emailInputs.filter((_, i) => i !== idx))} style={{ width: 44, background: "#fff5f5", border: "1.5px solid #fecaca", borderRadius: 12, cursor: "pointer", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                      <Minus style={{ width: 14, height: 14 }} />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            <button onClick={() => setEmailInputs([...emailInputs, ""])} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", borderRadius: 12, padding: "0.5rem 1rem", color: "#702dff", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer", marginTop: "0.55rem", fontFamily: "Tajawal, sans-serif", width: "100%", justifyContent: "center" }}>
+                              <Plus style={{ width: 14, height: 14 }} />إضافة إيميل آخر
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Note field */}
+                        <div>
+                          <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase" as const, letterSpacing: "0.05em", marginBottom: "0.5rem" }}>ملاحظة للطلب <span style={{ fontWeight: 400, textTransform: "none" as const, color: "#c4b5fd" }}>(اختياري)</span></div>
+                          <textarea
+                            value={purchaseNote}
+                            onChange={e => setPurchaseNote(e.target.value)}
+                            placeholder="أضف أي تفاصيل أو طلبات خاصة هنا..."
+                            rows={3}
+                            maxLength={500}
+                            style={{ width: "100%", padding: "0.75rem 1rem", border: "1.5px solid #e5e7eb", borderRadius: 12, fontSize: "0.875rem", outline: "none", color: "#374151", fontFamily: "Tajawal, sans-serif", background: "#fafafa", resize: "none" as const, boxSizing: "border-box" as const, lineHeight: 1.6 }}
+                            onFocus={e => { e.target.style.borderColor = "#702dff"; e.target.style.background = "#fff"; }}
+                            onBlur={e => { e.target.style.borderColor = "#e5e7eb"; e.target.style.background = "#fafafa"; }}
+                          />
+                          {purchaseNote.length > 0 && (
+                            <div style={{ fontSize: "0.7rem", color: "#c4b5fd", textAlign: "left", marginTop: "0.25rem" }}>{purchaseNote.length}/500</div>
+                          )}
+                        </div>
+
+                        <div style={{ background: "linear-gradient(135deg, #f5f4ff, #faf5ff)", borderRadius: 14, padding: "0.85rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid rgba(112,45,255,0.12)" }}>
+                          {p.requiresEmail !== false
+                            ? <span style={{ fontSize: "0.85rem", color: "#6b7280", fontFamily: "Tajawal, sans-serif" }}>${p.priceInCredits} × {emailInputs.filter(e => e.trim()).length || 1} إيميل</span>
+                            : <span style={{ fontSize: "0.85rem", color: "#6b7280", fontFamily: "Tajawal, sans-serif" }}>سعر الوحدة</span>
+                          }
+                          <span style={{ fontSize: "1.1rem", fontWeight: 900, color: "#702dff" }}>${totalEmailCost} رصيد</span>
+                        </div>
+
+                        <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12, padding: "0.65rem 0.9rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <span style={{ fontSize: "1rem", flexShrink: 0 }}>⏳</span>
+                          <p style={{ fontSize: "0.8rem", color: "#92400e", margin: 0, fontFamily: "Tajawal, sans-serif" }}>سيعمل فريقنا على التفعيل وستصلك رسالة تأكيد على بريدك.</p>
+                        </div>
+
+                        {manualError && (
+                          <div style={{ background: "#fff5f5", border: "1px solid #fecaca", color: "#dc2626", padding: "0.7rem 1rem", borderRadius: 12, fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                            <AlertCircle style={{ width: 15, height: 15, flexShrink: 0 }} />{manualError}
+                          </div>
+                        )}
+
+                        <button onClick={handleManualBuy} disabled={buyingManual} style={{ width: "100%", padding: "0.9rem", background: buyingManual ? "#a77fff" : "linear-gradient(135deg, #702dff, #9044ff)", border: "none", borderRadius: 16, color: "#fff", fontFamily: "Tajawal, sans-serif", fontWeight: 800, fontSize: "1rem", cursor: buyingManual ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", boxShadow: "0 6px 20px rgba(112,45,255,0.4)", minHeight: 52 }}>
+                          {buyingManual && <Loader2 style={{ width: 16, height: 16, animation: "spin 1s linear infinite" }} />}
+                          {buyingManual ? "جاري الشراء..." : `شراء — $${totalEmailCost} رصيد`}
                         </button>
-                      </div>
+                      </>
                     )}
-
-                    <div style={{ background: "#f9f9ff", borderRadius: 14, padding: "0.85rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid rgba(112,45,255,0.08)" }}>
-                      {p.requiresEmail !== false
-                        ? <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>${p.priceInCredits} × {emailInputs.filter(e => e.trim()).length || 1} إيميل</span>
-                        : <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>سعر الوحدة</span>
-                      }
-                      <span style={{ fontSize: "1.1rem", fontWeight: 900, color: "#702dff" }}>${totalEmailCost} رصيد</span>
-                    </div>
-
-                    <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12, padding: "0.7rem 0.9rem" }}>
-                      <p style={{ fontSize: "0.8rem", color: "#92400e", margin: 0 }}>⏳ سيعمل فريقنا على التفعيل وستصلك رسالة تأكيد.</p>
-                    </div>
-
-                    {manualError && (
-                      <div style={{ background: "#fff5f5", border: "1px solid #fecaca", color: "#dc2626", padding: "0.7rem 1rem", borderRadius: 12, fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                        <AlertCircle style={{ width: 15, height: 15, flexShrink: 0 }} />{manualError}
-                      </div>
-                    )}
-
-                    <button onClick={handleManualBuy} disabled={buyingManual} style={{ width: "100%", padding: "0.9rem", background: buyingManual ? "#a77fff" : "linear-gradient(135deg, #702dff, #9044ff)", border: "none", borderRadius: 16, color: "#fff", fontFamily: "Tajawal, sans-serif", fontWeight: 800, fontSize: "1rem", cursor: buyingManual ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", boxShadow: "0 6px 20px rgba(112,45,255,0.4)", minHeight: 52 }}>
-                      {buyingManual && <Loader2 style={{ width: 16, height: 16, animation: "spin 1s linear infinite" }} />}
-                      {buyingManual ? "جاري الشراء..." : `شراء — $${totalEmailCost} رصيد`}
-                    </button>
                   </>
                 )}
               </div>

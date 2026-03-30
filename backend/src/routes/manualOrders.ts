@@ -19,8 +19,9 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
     const schema = z.object({
       productId: z.string(),
       emails: z.array(z.string()).max(10).default([]),
+      note: z.string().max(500).optional(),
     });
-    const { productId, emails } = schema.parse(req.body);
+    const { productId, emails, note } = schema.parse(req.body);
 
     const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -71,6 +72,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
           productId: product.id,
           creditsCost: totalCost,
           emails: emails.join(","),
+          note: note || null,
           status: "PENDING",
           globalOrderNumber: counter.value,
         },
@@ -120,6 +122,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
         `👤 العميل: <b>${user.name}</b> (${user.email})\n` +
         `📦 المنتج: <b>${product.name}</b>\n` +
         (product.requiresEmail !== false ? `📧 الإيميلات: <b>${emails.join(", ")}</b>\n` : "") +
+        (note ? `📝 ملاحظة العميل: <b>${note}</b>\n` : "") +
         `💰 الرصيد المخصوم: <b>${totalCost}</b>\n\n` +
         `⚡ يرجى التفعيل في أقرب وقت ممكن`
       );

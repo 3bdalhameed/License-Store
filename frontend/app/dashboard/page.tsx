@@ -721,14 +721,9 @@ export default function DashboardPage() {
                 {p.isManual && (
                   <>
                     {!hasStock ? (
-                      /* Out of stock state */
-                      <div style={{ background: "linear-gradient(135deg, #f9fafb, #f3f4f6)", border: "1.5px solid #e5e7eb", borderRadius: 16, padding: "1.5rem", textAlign: "center", display: "flex", flexDirection: "column" as const, alignItems: "center", gap: "0.75rem" }}>
-                        <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#f3f4f6", border: "2px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.75rem" }}>🚫</div>
-                        <div>
-                          <div style={{ fontFamily: "Tajawal, sans-serif", fontWeight: 800, fontSize: "1rem", color: "#374151", marginBottom: "0.3rem" }}>نفذ المخزون</div>
-                          <div style={{ fontSize: "0.8rem", color: "#9ca3af", fontFamily: "Tajawal, sans-serif" }}>هذا المنتج غير متوفر حالياً، يرجى المراجعة لاحقاً</div>
-                        </div>
-                      </div>
+                      <button disabled style={{ width: "100%", background: "#f3f4f6", border: "none", borderRadius: 16, padding: "0.9rem", color: "#9ca3af", fontFamily: "Tajawal, sans-serif", fontWeight: 800, fontSize: "1rem", cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 52 }}>
+                        نفذ المخزون
+                      </button>
                     ) : (
                       <>
                         {p.requiresEmail !== false && (

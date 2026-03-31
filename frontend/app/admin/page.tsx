@@ -480,7 +480,8 @@ export default function AdminPage() {
         {/* ── Stats ── */}
         {tab === "stats" && stats && (() => {
           const avgOrder = stats.totalOrders > 0 ? (stats.totalRevenue / stats.totalOrders).toFixed(2) : "0.00";
-          const lowStockProducts = products.filter(p => !p.isManual && p.availableKeys <= 3);
+          const lowStockProducts = products.filter(p => !p.isManual && p.availableKeys > 0 && p.availableKeys <= 3);
+          const outOfStockProducts = products.filter(p => p.availableKeys === 0);
           const periodLabels: Record<string, string> = { all: "الكل", today: "اليوم", week: "الأسبوع", month: "الشهر", year: "السنة" };
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
@@ -544,7 +545,7 @@ export default function AdminPage() {
               </div>
 
               {/* ── Action alerts ── */}
-              {(pendingUsers.length > 0 || stats.pendingManualOrders > 0 || lowStockProducts.length > 0) && (
+              {(pendingUsers.length > 0 || stats.pendingManualOrders > 0 || lowStockProducts.length > 0 || outOfStockProducts.length > 0) && (
                 <div style={{ display: "flex", flexDirection: "column" as const, gap: "0.55rem" }}>
                   {pendingUsers.length > 0 && (
                     <div style={{ background: "#eff6ff", border: "1.5px solid #93c5fd", borderRadius: 14, padding: "0.85rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
@@ -572,6 +573,20 @@ export default function AdminPage() {
                         </div>
                       </div>
                       <button onClick={() => setTab("manual")} style={{ background: "#d97706", border: "none", borderRadius: 10, padding: "0.4rem 0.85rem", color: "#fff", fontSize: "0.76rem", fontWeight: 700, cursor: "pointer", fontFamily: "Tajawal, sans-serif", flexShrink: 0 }}>معالجة</button>
+                    </div>
+                  )}
+                  {outOfStockProducts.length > 0 && (
+                    <div style={{ background: "#1a0000", border: "1.5px solid #dc2626", borderRadius: 14, padding: "0.85rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                        <div style={{ width: 34, height: 34, borderRadius: 10, background: "#450a0a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <AlertCircle style={{ width: 16, height: 16, color: "#f87171" }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "0.85rem", color: "#fca5a5", fontWeight: 800, fontFamily: "Tajawal, sans-serif" }}>{outOfStockProducts.length} منتج غير متوفر (نفد المخزون)</div>
+                          <div style={{ fontSize: "0.7rem", color: "#f87171" }}>{outOfStockProducts.map(p => p.name).join("، ")}</div>
+                        </div>
+                      </div>
+                      <button onClick={() => setTab("products")} style={{ background: "#dc2626", border: "none", borderRadius: 10, padding: "0.4rem 0.85rem", color: "#fff", fontSize: "0.76rem", fontWeight: 700, cursor: "pointer", fontFamily: "Tajawal, sans-serif", flexShrink: 0 }}>إضافة</button>
                     </div>
                   )}
                   {lowStockProducts.length > 0 && (

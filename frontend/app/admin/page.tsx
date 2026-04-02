@@ -64,6 +64,7 @@ export default function AdminPage() {
   const [creditAmount, setCreditAmount] = useState(""); const [creditNote, setCreditNote] = useState(""); const [adjusting, setAdjusting] = useState(false);
   const [editCustomerId, setEditCustomerId] = useState<string | null>(null); const [editCustomerName, setEditCustomerName] = useState(""); const [editCustomerEmail, setEditCustomerEmail] = useState(""); const [editCustomerPassword, setEditCustomerPassword] = useState(""); const [editCustomerAllowDebt, setEditCustomerAllowDebt] = useState(false); const [savingCustomer, setSavingCustomer] = useState(false); const [editCustomerError, setEditCustomerError] = useState<string | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
+  const [productSearch, setProductSearch] = useState("");
   const [completeOrderId, setCompleteOrderId] = useState<string | null>(null);
   const [resultDetails, setResultDetails] = useState(""); const [completing, setCompleting] = useState(false);
   const [rejectOrderId, setRejectOrderId] = useState<string | null>(null);
@@ -833,8 +834,24 @@ export default function AdminPage() {
               )}
             </div>
 
+            {/* Search */}
+            <div style={{ position: "relative" as const }}>
+              <span style={{ position: "absolute" as const, right: "0.85rem", top: "50%", transform: "translateY(-50%)", fontSize: "1rem", pointerEvents: "none" }}>🔍</span>
+              <input
+                value={productSearch}
+                onChange={e => setProductSearch(e.target.value)}
+                placeholder="ابحث عن منتج..."
+                style={{ width: "100%", padding: "0.75rem 2.5rem 0.75rem 2.5rem", background: "#fff", border: "1.5px solid rgba(112,45,255,0.2)", borderRadius: 14, color: "#111", fontSize: "0.9rem", outline: "none", fontFamily: "Tajawal, sans-serif", boxSizing: "border-box" as const, boxShadow: "0 2px 12px rgba(112,45,255,0.07)" }}
+                onFocus={e => e.target.style.borderColor = "#702dff"}
+                onBlur={e => e.target.style.borderColor = "rgba(112,45,255,0.2)"}
+              />
+              {productSearch && (
+                <button onClick={() => setProductSearch("")} style={{ position: "absolute" as const, left: "0.85rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: "1.1rem", lineHeight: 1 }}>×</button>
+              )}
+            </div>
+
             {products.length === 0 && <div style={{ ...card, padding: "2rem", textAlign: "center", color: "#9ca3af" }}>لا توجد منتجات</div>}
-            {products.map(p => (
+            {products.filter(p => !productSearch.trim() || p.name.toLowerCase().includes(productSearch.trim().toLowerCase()) || p.description?.toLowerCase().includes(productSearch.trim().toLowerCase())).map(p => (
               <React.Fragment key={p.id}>
                 <div style={{ ...card, padding: "1rem 1rem 0.85rem", borderRight: `3px solid ${p.isManual ? "#a78bfa" : "#702dff"}` }}>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", marginBottom: "0.65rem" }}>

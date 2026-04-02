@@ -138,6 +138,7 @@ export default function DashboardPage() {
       setQuantities(q => ({ ...q, [product.id]: 1 }));
       setProductModal(null);
       setTab("orders");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: any) { setManualError(err.response?.data?.error || "فشل الشراء"); }
     finally { setBuying(null); }
   };
@@ -168,6 +169,7 @@ export default function DashboardPage() {
       if (res.data.warning) setBuyWarning(res.data.warning);
       setPurchaseNote("");
       setTab("orders");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: any) { setManualError(err.response?.data?.error || "فشل الشراء"); }
     finally { setBuyingManual(false); }
   };
@@ -422,93 +424,129 @@ export default function DashboardPage() {
         })()}
 
         {/* ── Orders tab ── */}
-        {tab === "orders" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {/* 30-day deletion notice */}
-            <div style={{ background: "#fffbeb", border: "1.5px solid #fcd34d", borderRadius: 14, padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: "0.6rem", fontSize: "0.8rem", color: "#92400e" }}>
-              <span style={{ fontSize: "1rem", flexShrink: 0 }}>⚠️</span>
-              <span style={{ fontFamily: "Tajawal, sans-serif" }}>يتم حذف الطلبات تلقائياً بعد <strong>30 يوماً</strong> من تاريخ الشراء. احفظ مفاتيحك في مكان آمن.</span>
-            </div>
-            {allOrders.length === 0 && <div style={{ textAlign: "center", padding: "3rem", color: "#9ca3af", background: "#fff", borderRadius: 16 }}>لا توجد طلبات بعد.</div>}
-            {allOrders.map(order => {
-              if (order.type === "manual") {
-                const mo = order as typeof manualOrders[0] & { type: "manual" };
-                const st = STATUS_MAP[mo.status];
-                const num = orderDisplayNumber(mo, "M");
-                return (
-                  <div key={mo.id} style={{ background: "#fff", borderRadius: 16, padding: "1rem", boxShadow: "0 2px 10px rgba(112,45,255,0.08)", border: "1px solid rgba(112,45,255,0.08)" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.6rem", flexWrap: "wrap" as const, gap: "0.4rem" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                        {num && <span style={{ fontFamily: "monospace", fontSize: "0.68rem", color: "#702dff", fontWeight: 700, background: "#f5f4ff", padding: "0.15rem 0.4rem", borderRadius: 5, border: "1px solid rgba(112,45,255,0.2)" }}>#{num}</span>}
-                        <span style={{ fontFamily: "Tajawal, sans-serif", fontWeight: 800, fontSize: "0.875rem", color: "#090040" }}>{mo.product.name}</span>
-                        <span style={{ background: "#f5f4ff", color: "#702dff", fontSize: "0.6rem", fontWeight: 700, padding: "0.1rem 0.4rem", borderRadius: 8, border: "1px solid rgba(112,45,255,0.2)" }}>📦 يدوي</span>
-                      </div>
-                      <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, fontSize: "0.72rem", fontWeight: 700, padding: "0.2rem 0.65rem", borderRadius: 20 }}>{st.label}</span>
-                    </div>
-                    <div style={{ fontSize: "0.75rem", color: "#9ca3af", marginBottom: "0.5rem" }}>
-                      {new Date(mo.createdAt).toLocaleDateString("ar-EG")} · <span style={{ color: "#702dff", fontWeight: 700 }}>${mo.creditsCost} رصيد</span>
-                    </div>
-                    {mo.emails && (
-                      <div style={{ background: "#f9f9ff", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: "0.78rem", color: "#374151" }}>
-                        📧 {mo.emails}
-                      </div>
-                    )}
-                    {mo.note && (
-                      <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: "0.78rem", color: "#92400e", display: "flex", gap: "0.4rem" }}>
-                        <span style={{ flexShrink: 0 }}>📝</span>
-                        <span style={{ fontFamily: "Tajawal, sans-serif" }}>{mo.note}</span>
-                      </div>
-                    )}
-                    {mo.resultDetails && mo.status === "COMPLETED" && (
-                      <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 8, padding: "0.65rem 0.75rem", marginTop: "0.5rem" }}>
-                        <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#16a34a", marginBottom: "0.3rem" }}>✅ تفاصيل التفعيل:</div>
-                        <pre style={{ fontSize: "0.8rem", color: "#090040", whiteSpace: "pre-wrap" as const, fontFamily: "inherit", margin: 0 }}>{mo.resultDetails}</pre>
-                      </div>
-                    )}
-                    {mo.status === "REJECTED" && (
-                      <div style={{ background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 8, padding: "0.65rem 0.75rem", marginTop: "0.5rem" }}>
-                        <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#dc2626" }}>❌ تم رفض الطلب {mo.resultDetails ? `— ${mo.resultDetails}` : ""}</div>
-                        <div style={{ fontSize: "0.72rem", color: "#16a34a", marginTop: "0.2rem" }}>✅ تم إرجاع الرصيد</div>
-                      </div>
-                    )}
-                    {mo.status === "PENDING" && (
-                      <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: "0.5rem 0.75rem", marginTop: "0.5rem", fontSize: "0.75rem", color: "#92400e" }}>
-                        ⏳ طلبك قيد المراجعة
-                      </div>
-                    )}
+        {tab === "orders" && (() => {
+          const inProgressOrders = allOrders.filter(o => o.type === "manual" && ((o as any).status === "PENDING" || (o as any).status === "IN_PROGRESS"));
+          const doneOrders = allOrders.filter(o => o.type === "key" || (o.type === "manual" && ((o as any).status === "COMPLETED" || (o as any).status === "REJECTED")));
+
+          const renderManualOrder = (mo: typeof manualOrders[0]) => {
+            const st = STATUS_MAP[mo.status];
+            const num = orderDisplayNumber(mo, "M");
+            return (
+              <div key={mo.id} style={{ background: "#fff", borderRadius: 16, padding: "1rem", boxShadow: "0 2px 10px rgba(112,45,255,0.08)", border: "1px solid rgba(112,45,255,0.08)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.6rem", flexWrap: "wrap" as const, gap: "0.4rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                    {num && <span style={{ fontFamily: "monospace", fontSize: "0.68rem", color: "#702dff", fontWeight: 700, background: "#f5f4ff", padding: "0.15rem 0.4rem", borderRadius: 5, border: "1px solid rgba(112,45,255,0.2)" }}>#{num}</span>}
+                    <span style={{ fontFamily: "Tajawal, sans-serif", fontWeight: 800, fontSize: "0.875rem", color: "#090040" }}>{mo.product.name}</span>
+                    <span style={{ background: "#f5f4ff", color: "#702dff", fontSize: "0.6rem", fontWeight: 700, padding: "0.1rem 0.4rem", borderRadius: 8, border: "1px solid rgba(112,45,255,0.2)" }}>📦 يدوي</span>
                   </div>
-                );
-              }
-              const ko = order as typeof orders[0] & { type: "key" };
-              const num = orderDisplayNumber(ko, "K");
-              const days = daysUntilDeletion(ko.createdAt);
-              return (
-                <div key={ko.id} style={{ background: "#fff", borderRadius: 16, padding: "1rem", boxShadow: "0 2px 10px rgba(112,45,255,0.08)", border: `1px solid ${days <= 7 ? "#fcd34d" : "rgba(112,45,255,0.08)"}` }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                      {num && <span style={{ fontFamily: "monospace", fontSize: "0.68rem", color: "#702dff", fontWeight: 700, background: "#f5f4ff", padding: "0.15rem 0.4rem", borderRadius: 5, border: "1px solid rgba(112,45,255,0.2)" }}>#{num}</span>}
-                      <span style={{ fontFamily: "Tajawal, sans-serif", fontWeight: 800, fontSize: "0.875rem", color: "#090040" }}>{ko.product.name}</span>
-                      <span style={{ background: "#f0fdf4", color: "#16a34a", fontSize: "0.6rem", fontWeight: 700, padding: "0.1rem 0.4rem", borderRadius: 8, border: "1px solid #86efac" }}>🔑 تسليم فوري</span>
-                    </div>
-                    <span style={{ fontSize: "0.75rem", color: "#702dff", fontWeight: 700 }}>${ko.creditsCost}</span>
+                  <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, fontSize: "0.72rem", fontWeight: 700, padding: "0.2rem 0.65rem", borderRadius: 20 }}>{st.label}</span>
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "#9ca3af", marginBottom: "0.5rem" }}>
+                  {new Date(mo.createdAt).toLocaleDateString("ar-EG")} · <span style={{ color: "#702dff", fontWeight: 700 }}>${mo.creditsCost} رصيد</span>
+                </div>
+                {mo.emails && (
+                  <div style={{ background: "#f9f9ff", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: "0.78rem", color: "#374151" }}>
+                    📧 {mo.emails}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "#f5f4ff", border: "1.5px solid rgba(112,45,255,0.15)", borderRadius: 10, padding: "0.6rem 0.75rem" }}>
-                    <code style={{ fontSize: "0.8rem", fontFamily: "monospace", color: "#702dff", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{ko.licenseKey.key}</code>
-                    <button onClick={() => copyKey(ko.licenseKey.key)} style={{ background: "none", border: "none", cursor: "pointer", color: copiedKey === ko.licenseKey.key ? "#22c55e" : "#702dff", flexShrink: 0, padding: "0.25rem" }}>
-                      {copiedKey === ko.licenseKey.key ? <Check style={{ width: 16, height: 16 }} /> : <Copy style={{ width: 16, height: 16 }} />}
-                    </button>
+                )}
+                {mo.note && (
+                  <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: "0.5rem 0.75rem", fontSize: "0.78rem", color: "#92400e", display: "flex", gap: "0.4rem" }}>
+                    <span style={{ flexShrink: 0 }}>📝</span>
+                    <span style={{ fontFamily: "Tajawal, sans-serif" }}>{mo.note}</span>
                   </div>
-                  {days <= 7 && (
-                    <div style={{ marginTop: "0.5rem", background: days <= 2 ? "#fff5f5" : "#fffbeb", border: `1px solid ${days <= 2 ? "#fecaca" : "#fcd34d"}`, borderRadius: 8, padding: "0.4rem 0.65rem", fontSize: "0.73rem", color: days <= 2 ? "#dc2626" : "#92400e", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-                      <AlertCircle style={{ width: 12, height: 12, flexShrink: 0 }} />
-                      {days <= 0 ? "سيتم حذف هذا الطلب قريباً جداً — احفظ المفتاح الآن!" : `سيتم حذف هذا الطلب خلال ${days} ${days === 1 ? "يوم" : "أيام"}`}
+                )}
+                {mo.resultDetails && mo.status === "COMPLETED" && (
+                  <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 8, padding: "0.65rem 0.75rem", marginTop: "0.5rem" }}>
+                    <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#16a34a", marginBottom: "0.3rem" }}>✅ تفاصيل التفعيل:</div>
+                    <pre style={{ fontSize: "0.8rem", color: "#090040", whiteSpace: "pre-wrap" as const, fontFamily: "inherit", margin: 0 }}>{mo.resultDetails}</pre>
+                  </div>
+                )}
+                {mo.status === "REJECTED" && (
+                  <div style={{ background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 8, padding: "0.65rem 0.75rem", marginTop: "0.5rem" }}>
+                    <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#dc2626" }}>❌ تم رفض الطلب {mo.resultDetails ? `— ${mo.resultDetails}` : ""}</div>
+                    <div style={{ fontSize: "0.72rem", color: "#16a34a", marginTop: "0.2rem" }}>✅ تم إرجاع الرصيد</div>
+                  </div>
+                )}
+                {mo.status === "PENDING" && (
+                  <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: "0.5rem 0.75rem", marginTop: "0.5rem", fontSize: "0.75rem", color: "#92400e" }}>
+                    ⏳ طلبك قيد المراجعة
+                  </div>
+                )}
+              </div>
+            );
+          };
+
+          const renderKeyOrder = (ko: typeof orders[0]) => {
+            const num = orderDisplayNumber(ko, "K");
+            const days = daysUntilDeletion(ko.createdAt);
+            return (
+              <div key={ko.id} style={{ background: "#fff", borderRadius: 16, padding: "1rem", boxShadow: "0 2px 10px rgba(112,45,255,0.08)", border: `1px solid ${days <= 7 ? "#fcd34d" : "rgba(112,45,255,0.08)"}` }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                    {num && <span style={{ fontFamily: "monospace", fontSize: "0.68rem", color: "#702dff", fontWeight: 700, background: "#f5f4ff", padding: "0.15rem 0.4rem", borderRadius: 5, border: "1px solid rgba(112,45,255,0.2)" }}>#{num}</span>}
+                    <span style={{ fontFamily: "Tajawal, sans-serif", fontWeight: 800, fontSize: "0.875rem", color: "#090040" }}>{ko.product.name}</span>
+                    <span style={{ background: "#f0fdf4", color: "#16a34a", fontSize: "0.6rem", fontWeight: 700, padding: "0.1rem 0.4rem", borderRadius: 8, border: "1px solid #86efac" }}>🔑 تسليم فوري</span>
+                  </div>
+                  <span style={{ fontSize: "0.75rem", color: "#702dff", fontWeight: 700 }}>${ko.creditsCost}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "#f5f4ff", border: "1.5px solid rgba(112,45,255,0.15)", borderRadius: 10, padding: "0.6rem 0.75rem" }}>
+                  <code style={{ fontSize: "0.8rem", fontFamily: "monospace", color: "#702dff", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{ko.licenseKey.key}</code>
+                  <button onClick={() => copyKey(ko.licenseKey.key)} style={{ background: "none", border: "none", cursor: "pointer", color: copiedKey === ko.licenseKey.key ? "#22c55e" : "#702dff", flexShrink: 0, padding: "0.25rem" }}>
+                    {copiedKey === ko.licenseKey.key ? <Check style={{ width: 16, height: 16 }} /> : <Copy style={{ width: 16, height: 16 }} />}
+                  </button>
+                </div>
+                {days <= 7 && (
+                  <div style={{ marginTop: "0.5rem", background: days <= 2 ? "#fff5f5" : "#fffbeb", border: `1px solid ${days <= 2 ? "#fecaca" : "#fcd34d"}`, borderRadius: 8, padding: "0.4rem 0.65rem", fontSize: "0.73rem", color: days <= 2 ? "#dc2626" : "#92400e", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                    <AlertCircle style={{ width: 12, height: 12, flexShrink: 0 }} />
+                    {days <= 0 ? "سيتم حذف هذا الطلب قريباً جداً — احفظ المفتاح الآن!" : `سيتم حذف هذا الطلب خلال ${days} ${days === 1 ? "يوم" : "أيام"}`}
+                  </div>
+                )}
+              </div>
+            );
+          };
+
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              {/* 30-day deletion notice */}
+              <div style={{ background: "#fffbeb", border: "1.5px solid #fcd34d", borderRadius: 14, padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: "0.6rem", fontSize: "0.8rem", color: "#92400e" }}>
+                <span style={{ fontSize: "1rem", flexShrink: 0 }}>⚠️</span>
+                <span style={{ fontFamily: "Tajawal, sans-serif" }}>يتم حذف الطلبات تلقائياً بعد <strong>30 يوماً</strong> من تاريخ الشراء. احفظ مفاتيحك في مكان آمن.</span>
+              </div>
+
+              {allOrders.length === 0 && <div style={{ textAlign: "center", padding: "3rem", color: "#9ca3af", background: "#fff", borderRadius: 16 }}>لا توجد طلبات بعد.</div>}
+
+              {/* ── In-progress section ── */}
+              {inProgressOrders.length > 0 && (
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.65rem" }}>
+                    <div style={{ width: 4, height: 18, borderRadius: 2, background: "linear-gradient(135deg, #f59e0b, #fbbf24)" }} />
+                    <span style={{ fontFamily: "Tajawal, sans-serif", fontWeight: 900, fontSize: "0.95rem", color: "#090040" }}>قيد التنفيذ</span>
+                    <span style={{ background: "#fffbeb", color: "#d97706", border: "1px solid #fcd34d", borderRadius: 20, padding: "0.1rem 0.55rem", fontSize: "0.7rem", fontWeight: 700 }}>{inProgressOrders.length}</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+                    {inProgressOrders.map(o => renderManualOrder(o as any))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Done section ── */}
+              {doneOrders.length > 0 && (
+                <div>
+                  {inProgressOrders.length > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.65rem", marginTop: "0.5rem" }}>
+                      <div style={{ width: 4, height: 18, borderRadius: 2, background: "linear-gradient(135deg, #702dff, #9044ff)" }} />
+                      <span style={{ fontFamily: "Tajawal, sans-serif", fontWeight: 900, fontSize: "0.95rem", color: "#090040" }}>المكتملة</span>
+                      <span style={{ background: "#f5f4ff", color: "#702dff", border: "1px solid rgba(112,45,255,0.2)", borderRadius: 20, padding: "0.1rem 0.55rem", fontSize: "0.7rem", fontWeight: 700 }}>{doneOrders.length}</span>
                     </div>
                   )}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+                    {doneOrders.map(o => o.type === "key" ? renderKeyOrder(o as any) : renderManualOrder(o as any))}
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── Credit history tab ── */}
         {tab === "credits" && (

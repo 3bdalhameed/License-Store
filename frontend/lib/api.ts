@@ -105,8 +105,8 @@ export const addKeys = (productId: string, keys: string) =>
   api.post("/api/admin/keys", { productId, keys });
 
 // ── Manual Orders ─────────────────────────────────────────────────────────────
-export const buyManualProduct = (productId: string, emails: string[], note?: string) =>
-  api.post("/api/manual-orders", { productId, emails, note });
+export const buyManualProduct = (productId: string, emails: string[], note?: string, quantity?: number) =>
+  api.post("/api/manual-orders", { productId, emails, note, quantity });
 
 export const getMyManualOrders = () => api.get("/api/manual-orders/my");
 

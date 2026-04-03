@@ -20,8 +20,9 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
       productId: z.string(),
       emails: z.array(z.string()).max(10).default([]),
       note: z.string().max(500).optional(),
+      quantity: z.number().int().min(1).max(100).default(1),
     });
-    const { productId, emails, note } = schema.parse(req.body);
+    const { productId, emails, note, quantity } = schema.parse(req.body);
 
     const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -42,8 +43,8 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
       if (invalid) return res.status(400).json({ error: "بريد إلكتروني غير صحيح" });
     }
 
-    // Total cost = price × emails (or price × 1 if no email required)
-    const emailCount = (product.requiresEmail !== false) ? emails.length : 1;
+    // Total cost = price × emails (or price × quantity if no email required)
+    const emailCount = (product.requiresEmail !== false) ? emails.length : quantity;
     const totalCost = product.priceInCredits * emailCount;
     const DEBT_LIMIT = user.allowDebt ? -20 : 0;
     const balanceAfter = user.credits - totalCost;
@@ -97,7 +98,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
       });
       await (tx.product as any).update({
         where: { id: product.id },
-        data: { manualStock: { decrement: 1 } },
+        data: { manualStock: { decrement: emailCount } },
       });
 
       return order;

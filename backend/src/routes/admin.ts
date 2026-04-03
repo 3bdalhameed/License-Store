@@ -114,7 +114,6 @@ router.post("/credits", async (req: AuthRequest, res: Response) => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ error: "User not found" });
     const newBalance = user.credits + amount;
-    if (newBalance < 0) return res.status(400).json({ error: "Insufficient credits" });
     const [updatedUser] = await prisma.$transaction([
       prisma.user.update({
         where: { id: userId },

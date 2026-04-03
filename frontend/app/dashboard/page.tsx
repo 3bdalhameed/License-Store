@@ -55,6 +55,7 @@ export default function DashboardPage() {
   const [buyingManual, setBuyingManual] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
   const [purchaseNote, setPurchaseNote] = useState("");
+  const [manualQty, setManualQty] = useState(1);
   const [productSearch, setProductSearch] = useState("");
   const sliderRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const dragState = useRef<{ id: string; startX: number; scrollLeft: number; dragging: boolean } | null>(null);
@@ -153,7 +154,7 @@ export default function DashboardPage() {
       if (!validEmails.every(e => emailRegex.test(e))) { setManualError("تحقق من صحة البريد الإلكتروني"); return; }
     }
 
-    const totalCost = needsEmail ? productModal.priceInCredits * validEmails.length : productModal.priceInCredits;
+    const totalCost = needsEmail ? productModal.priceInCredits * validEmails.length : productModal.priceInCredits * manualQty;
     const balanceAfter = user.credits - totalCost;
     const debtLimit = user.allowDebt ? -20 : 0;
     if (balanceAfter < debtLimit) {
@@ -163,7 +164,7 @@ export default function DashboardPage() {
 
     setBuyingManual(true); setManualError(null);
     try {
-      const res = await buyManualProduct(productModal.id, validEmails, purchaseNote.trim() || undefined);
+      const res = await buyManualProduct(productModal.id, validEmails, purchaseNote.trim() || undefined, needsEmail ? undefined : manualQty);
       const [meRes, manualRes, creditsRes] = await Promise.all([getMe(), getMyManualOrders(), getMyCreditLogs()]);
       setUser(meRes.data); setManualOrders(manualRes.data); setCreditLogs(creditsRes.data); setProductModal(null);
       if (res.data.warning) setBuyWarning(res.data.warning);
@@ -196,7 +197,7 @@ export default function DashboardPage() {
   const totalEmailCost = productModal
     ? (productModal.requiresEmail !== false
         ? productModal.priceInCredits * (emailInputs.filter(e => e.trim()).length || 1)
-        : productModal.priceInCredits)
+        : productModal.priceInCredits * manualQty)
     : 0;
 
   const tabs = [
@@ -278,6 +279,7 @@ export default function DashboardPage() {
               setEmailInputs([""]);
               setManualError(null);
               setPurchaseNote("");
+              setManualQty(1);
               setQuantities(q => ({ ...q, [p.id]: q[p.id] ?? 1 }));
             };
 
@@ -810,10 +812,25 @@ export default function DashboardPage() {
                           )}
                         </div>
 
+                        {p.requiresEmail === false && (
+                          <div>
+                            <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase" as const, letterSpacing: "0.05em", marginBottom: "0.5rem" }}>الكمية</div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                              <button onClick={() => setManualQty(q => Math.max(1, q - 1))} style={{ width: 40, height: 40, borderRadius: 12, border: "1.5px solid #e5e7eb", background: "#fff", cursor: manualQty <= 1 ? "not-allowed" : "pointer", color: manualQty <= 1 ? "#d1d5db" : "#374151", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} disabled={manualQty <= 1}>
+                                <Minus style={{ width: 16, height: 16 }} />
+                              </button>
+                              <span style={{ fontFamily: "Tajawal, sans-serif", fontWeight: 900, fontSize: "1.3rem", color: "#090040", minWidth: 32, textAlign: "center" }}>{manualQty}</span>
+                              <button onClick={() => setManualQty(q => Math.min(p.availableKeys, q + 1))} style={{ width: 40, height: 40, borderRadius: 12, border: "1.5px solid #702dff", background: "#f5f4ff", cursor: manualQty >= p.availableKeys ? "not-allowed" : "pointer", color: manualQty >= p.availableKeys ? "#d1d5db" : "#702dff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} disabled={manualQty >= p.availableKeys}>
+                                <Plus style={{ width: 16, height: 16 }} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
                         <div style={{ background: "linear-gradient(135deg, #f5f4ff, #faf5ff)", borderRadius: 14, padding: "0.85rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid rgba(112,45,255,0.12)" }}>
                           {p.requiresEmail !== false
                             ? <span style={{ fontSize: "0.85rem", color: "#6b7280", fontFamily: "Tajawal, sans-serif" }}>${p.priceInCredits} × {emailInputs.filter(e => e.trim()).length || 1} إيميل</span>
-                            : <span style={{ fontSize: "0.85rem", color: "#6b7280", fontFamily: "Tajawal, sans-serif" }}>سعر الوحدة</span>
+                            : <span style={{ fontSize: "0.85rem", color: "#6b7280", fontFamily: "Tajawal, sans-serif" }}>${p.priceInCredits} × {manualQty} وحدة</span>
                           }
                           <span style={{ fontSize: "1.1rem", fontWeight: 900, color: "#702dff" }}>${totalEmailCost} رصيد</span>
                         </div>

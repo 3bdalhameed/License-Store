@@ -144,6 +144,37 @@ router.get("/me", async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/auth/refresh
+router.post("/refresh", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "No token" });
+  }
+  try {
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string; email: string; role: string };
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, email: true, role: true, status: true },
+    });
+
+    if (!user || user.status !== "ACTIVE") {
+      return res.status(401).json({ error: "User not found or inactive" });
+    }
+
+    const newToken = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET!,
+      { expiresIn: "7d" }
+    );
+
+    return res.json({ token: newToken });
+  } catch {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+});
+
 // POST /api/auth/forgot-password
 router.post("/forgot-password", async (req: Request, res: Response) => {
   try {

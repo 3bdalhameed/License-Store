@@ -28,7 +28,10 @@ export async function saveTgConfig(botToken: string, adminChatId: string): Promi
 export async function sendTgMessage(
   botToken: string, chatId: string, text: string
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!botToken?.trim() || !chatId?.trim()) return { ok: false, error: "missing config" };
+  if (!botToken?.trim() || !chatId?.trim()) {
+    console.log("[Telegram] skipped — missing botToken or chatId");
+    return { ok: false, error: "missing config" };
+  }
   try {
     const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method:  "POST",
@@ -36,8 +39,14 @@ export async function sendTgMessage(
       body:    JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
     });
     const data = await res.json() as any;
-    return res.ok ? { ok: true } : { ok: false, error: data.description || "Telegram error" };
+    if (res.ok) {
+      console.log(`[Telegram] ✓ sent to chatId=${chatId}`);
+      return { ok: true };
+    }
+    console.error(`[Telegram] ✗ error: ${data.description}`);
+    return { ok: false, error: data.description || "Telegram error" };
   } catch (e: any) {
+    console.error(`[Telegram] ✗ network error: ${e?.message}`);
     return { ok: false, error: e?.message || "network error" };
   }
 }

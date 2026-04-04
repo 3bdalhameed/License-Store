@@ -289,7 +289,9 @@ export default function SupportAdminPage() {
       await saveTelegramSettings(tgConfig.botToken, tgConfig.adminChatId);
       setTgSaved(true);
       setTimeout(() => setTgSaved(false), 2500);
-    } catch {}
+    } catch (err: any) {
+      alert("فشل حفظ الإعدادات: " + (err?.response?.data?.error || err?.message || "خطأ غير معروف"));
+    }
   };
 
   const handleTestTelegram = async (target: "admin" | "emp") => {

@@ -32,7 +32,6 @@ export default function NewTicketPage() {
 
   // Form fields
   const [requestNumber,   setRequestNumber]   = useState("");
-  const [orderNumber,     setOrderNumber]     = useState("");
   const [activationEmail, setActivationEmail] = useState("");
   const [productType,     setProductType]     = useState("");
   const [description,     setDescription]     = useState("");
@@ -120,8 +119,7 @@ export default function NewTicketPage() {
         productType:     productType.trim(),
         description:     description.trim(),
         category, priority,
-        customerContact:  customerContact.trim()  || undefined,
-        referenceNumber:  orderNumber.trim()       || undefined,
+        customerContact:  customerContact.trim() || undefined,
         attachments,
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : undefined,
       });
@@ -142,7 +140,7 @@ export default function NewTicketPage() {
 
   const resetForm = () => {
     setCreated(null);
-    setRequestNumber(""); setOrderNumber(""); setActivationEmail(""); setProductType("");
+    setRequestNumber(""); setActivationEmail(""); setProductType("");
     setDescription(""); setCustomerContact("");
     setAttachments([]); setMediaLinks([]); setLinkInputVal("");
     setErrors({});
@@ -225,12 +223,6 @@ export default function NewTicketPage() {
                 {errors.requestNumber && <p style={{ fontSize: "0.75rem", color: "#dc2626", marginTop: "0.25rem" }}>{errors.requestNumber}</p>}
               </div>
               <div>
-                <label style={lbl}>رقم الطلبية <span style={{ color: "#9ca3af", fontWeight: 400 }}>(اختياري)</span></label>
-                <input value={orderNumber} onChange={e => setOrderNumber(e.target.value)}
-                  placeholder="مثال: 1042 أو ORD-2026-001"
-                  style={{ ...inp, direction: "ltr", textAlign: "left" }} />
-              </div>
-              <div>
                 <label style={lbl}>إيميل التفعيل {required}</label>
                 <input type="email" value={activationEmail} onChange={e => setActivationEmail(e.target.value)} placeholder="customer@example.com"
                   style={{ ...inp, borderColor: errors.activationEmail ? "#fca5a5" : "#e5e7eb", direction: "ltr", textAlign: "left" }} />
@@ -244,7 +236,7 @@ export default function NewTicketPage() {
               </div>
               <div>
                 <label style={lbl}>طريقة التواصل مع العميل <span style={{ color: "#9ca3af", fontWeight: 400 }}>(اختياري)</span></label>
-                <input value={customerContact} onChange={e => setCustomerContact(e.target.value)} placeholder="واتساب: +966..." style={inp} />
+                <input value={customerContact} onChange={e => setCustomerContact(e.target.value)} placeholder="واتساب: +962..." style={inp} />
               </div>
             </div>
 

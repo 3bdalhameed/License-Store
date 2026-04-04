@@ -219,6 +219,7 @@ export const createSupportTicket = (data: {
   referenceNumber?: string;
   attachments?: any[];
   mediaLinks?: string[];
+  assignedTo?: string;
 }) => apiSupport.post("/api/support/tickets", data);
 
 export const getSupportTicket = (id: string) =>
@@ -238,6 +239,9 @@ export const markSupportTicketNotified = (id: string) =>
 
 export const deleteSupportTicketApi = (id: string) =>
   apiSupport.delete(`/api/support/tickets/${id}`);
+
+export const assignSupportTicket = (id: string, assignedTo: string | null) =>
+  apiSupport.patch(`/api/support/tickets/${id}/assign`, { assignedTo });
 
 // ── Telegram settings (use main admin token) ──────────────────────────────────
 export const getTelegramSettings = () =>

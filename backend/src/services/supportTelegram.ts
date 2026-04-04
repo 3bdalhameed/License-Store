@@ -100,33 +100,52 @@ export async function notifyNewTicket(ticket: {
   void sendTgMessage(botToken, adminChatId, text);
 }
 
-export async function notifyTicketResolved(ticket: {
+const STATUS_AR: Record<string, string> = {
+  NEW:                        "🆕 جديد",
+  UNDER_REVIEW:               "🔍 قيد المراجعة",
+  ADDITIONAL_INFO_REQUIRED:   "❓ يحتاج معلومات إضافية",
+  IN_PROGRESS:                "⚙️ جارٍ المعالجة",
+  RESOLVED:                   "✅ تم الحل",
+  CLOSED:                     "🔒 مغلق",
+  CANCELLED:                  "❌ ملغي",
+};
+
+export async function notifyStatusChanged(ticket: {
   id: string; requestNumber: string; activationEmail: string;
   productType: string; employeeId: string; updatedAt: Date;
-}): Promise<void> {
+}, newStatus: string, changedBy: string): Promise<void> {
   const { botToken } = await getTgConfig();
-  if (!botToken) { console.log("[Telegram] notifyResolved skipped — no botToken"); return; }
+  if (!botToken) { console.log("[Telegram] notifyStatusChanged skipped — no botToken"); return; }
 
   const emp = await prisma.supportEmployee.findUnique({
     where: { id: ticket.employeeId },
-    select: { telegramChatId: true, name: true },
+    select: { telegramChatId: true },
   });
-  console.log(`[Telegram] notifyResolved — employeeId=${ticket.employeeId} emp=${JSON.stringify(emp)}`);
-  if (!emp?.telegramChatId) { console.log("[Telegram] notifyResolved skipped — employee has no telegramChatId"); return; }
+
+  if (!emp) { console.log(`[Telegram] notifyStatusChanged skipped — no employee record found for id=${ticket.employeeId}`); return; }
+  console.log(`[Telegram] notifyStatusChanged — found employee chatId=${emp.telegramChatId}`);
+  if (!emp.telegramChatId) { console.log(`[Telegram] notifyStatusChanged skipped — telegramChatId is empty`); return; }
+
+  const statusLabel = STATUS_AR[newStatus] ?? newStatus;
+  const extra = newStatus === "RESOLVED"
+    ? `\n⚠️ <b>يرجى إبلاغ العميل بحل مشكلته.</b>` : "";
 
   const text = [
-    `✅ <b>تم حل التذكرة</b>`,
+    `🔄 <b>تم تغيير حالة التذكرة</b>`,
     `━━━━━━━━━━━━━━━━━━━━`,
     `🎫 <b>${ticket.id}</b>`,
     `📝 رقم الطلب: <code>${ticket.requestNumber}</code>`,
     `📧 الإيميل: <code>${ticket.activationEmail}</code>`,
     `📦 المنتج: ${ticket.productType}`,
     ``,
-    `⚠️ <b>يرجى إبلاغ العميل بحل مشكلته.</b>`,
+    `📌 الحالة الجديدة: <b>${statusLabel}</b>`,
+    `👤 بواسطة: ${changedBy}`,
+    extra,
     `🕒 ${fmt(ticket.updatedAt)}`,
-  ].join("\n");
+  ].filter(l => l !== undefined).join("\n");
 
-  void sendTgMessage(botToken, emp.telegramChatId, text);
+  const result = await sendTgMessage(botToken, emp.telegramChatId, text);
+  console.log(`[Telegram] notifyStatusChanged — result=${JSON.stringify(result)}`);
 }
 
 export async function notifyInfoRequested(ticket: {

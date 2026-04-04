@@ -6,7 +6,7 @@ import { prisma } from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 import { requireAdmin } from "../middleware/adminOnly";
 import {
-  notifyNewTicket, notifyTicketResolved, notifyInfoRequested,
+  notifyNewTicket, notifyStatusChanged, notifyInfoRequested,
   saveTgConfig, getTgConfig, sendTgMessage,
 } from "../services/supportTelegram";
 
@@ -182,6 +182,7 @@ router.patch("/employees/:id", requireAuth, requireAdmin, async (req: AuthReques
       data,
       select: { id: true, name: true, email: true, telegramChatId: true, createdAt: true },
     });
+    console.log(`[Employee] updated id=${emp.id} telegramChatId=${emp.telegramChatId}`);
     return res.json(emp);
   } catch {
     return res.status(400).json({ error: "فشل التحديث" });
@@ -238,7 +239,7 @@ router.get("/tickets", requireSupportAuth, async (req: SupportAuthRequest, res: 
 // ── POST /api/support/tickets ─────────────────────────────────────────────────
 router.post("/tickets", requireSupportAuth, async (req: SupportAuthRequest, res: Response) => {
   const user = req.supportUser!;
-  const { requestNumber, activationEmail, productType, description, category, priority, customerContact, referenceNumber, attachments, mediaLinks } = req.body;
+  const { requestNumber, activationEmail, productType, description, category, priority, customerContact, referenceNumber, attachments, mediaLinks, assignedTo } = req.body;
 
   if (!requestNumber?.trim())
     return res.status(400).json({ error: "رقم الطلب مطلوب" });
@@ -264,6 +265,7 @@ router.post("/tickets", requireSupportAuth, async (req: SupportAuthRequest, res:
       customerNotified: false,
       customerContact:  customerContact  || null,
       referenceNumber:  referenceNumber  || null,
+      assignedTo:       assignedTo       || null,
       employeeId:   user.id,
       employeeName: user.name,
       attachments:  attachments  || [],
@@ -279,7 +281,7 @@ router.post("/tickets", requireSupportAuth, async (req: SupportAuthRequest, res:
     },
   });
 
-  void notifyNewTicket(ticket);
+  notifyNewTicket(ticket).catch(e => console.error("[Telegram] notifyNewTicket error:", e));
   return res.status(201).json(formatTicket(ticket));
 });
 
@@ -314,7 +316,44 @@ router.patch("/tickets/:id/status", requireSupportAuth, async (req: SupportAuthR
     data: { status, activityLog: [...oldLog, entry], updatedAt: new Date() },
   });
 
-  if (status === "RESOLVED") void notifyTicketResolved(updated);
+  notifyStatusChanged(updated, status, user.name).catch(e => console.error("[Telegram] notifyStatusChanged error:", e));
+  return res.json(formatTicket(updated));
+});
+
+// ── PATCH /api/support/tickets/:id/assign ─────────────────────────────────────
+router.patch("/tickets/:id/assign", requireSupportAuth, async (req: SupportAuthRequest, res: Response) => {
+  if (req.supportUser!.role !== "ADMIN")
+    return res.status(403).json({ error: "غير مصرح" });
+
+  const { assignedTo } = req.body;
+  const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id } });
+  if (!ticket) return res.status(404).json({ error: "التذكرة غير موجودة" });
+
+  const now = new Date().toISOString();
+  const oldLog = (ticket.activityLog as any[]) || [];
+
+  // Resolve employee name for log
+  let empName = "—";
+  if (assignedTo) {
+    const emp = await prisma.supportEmployee.findUnique({ where: { id: assignedTo }, select: { name: true } });
+    empName = emp?.name || assignedTo;
+  }
+
+  const updated = await prisma.supportTicket.update({
+    where: { id: req.params.id },
+    data: {
+      assignedTo: assignedTo || null,
+      activityLog: [...oldLog, {
+        id: uid(),
+        action: assignedTo ? `تم تعيين الموظف: ${empName}` : "تم إلغاء تعيين الموظف",
+        performedBy: req.supportUser!.name,
+        performedByRole: "admin",
+        createdAt: now,
+      }],
+      updatedAt: new Date(),
+    },
+  });
+
   return res.json(formatTicket(updated));
 });
 
@@ -364,7 +403,7 @@ router.post("/tickets/:id/comments", requireSupportAuth, async (req: SupportAuth
     data: updateData,
   });
 
-  if (isInfoRequest) void notifyInfoRequested(updated, content);
+  if (isInfoRequest) notifyInfoRequested(updated, content).catch(e => console.error("[Telegram] notifyInfoRequested error:", e));
   return res.json(formatTicket(updated));
 });
 

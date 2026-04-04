@@ -27,8 +27,8 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
   const { from, to } = req.query;
   const dateFilter = (from || to) ? {
     createdAt: {
-      ...(from ? { gte: new Date(from as string) } : {}),
-      ...(to ? { lte: new Date(to as string) } : {}),
+      ...(from ? { gte: new Date(`${from}T00:00:00.000Z`) } : {}),
+      ...(to   ? { lte: new Date(`${to}T23:59:59.999Z`)   } : {}),
     },
   } : {};
 

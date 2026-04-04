@@ -105,13 +105,14 @@ export async function notifyTicketResolved(ticket: {
   productType: string; employeeId: string; updatedAt: Date;
 }): Promise<void> {
   const { botToken } = await getTgConfig();
-  if (!botToken) return;
+  if (!botToken) { console.log("[Telegram] notifyResolved skipped — no botToken"); return; }
 
   const emp = await prisma.supportEmployee.findUnique({
     where: { id: ticket.employeeId },
-    select: { telegramChatId: true },
+    select: { telegramChatId: true, name: true },
   });
-  if (!emp?.telegramChatId) return;
+  console.log(`[Telegram] notifyResolved — employeeId=${ticket.employeeId} emp=${JSON.stringify(emp)}`);
+  if (!emp?.telegramChatId) { console.log("[Telegram] notifyResolved skipped — employee has no telegramChatId"); return; }
 
   const text = [
     `✅ <b>تم حل التذكرة</b>`,

@@ -133,6 +133,46 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+model SupportEmployee {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  password       String
+  telegramChatId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("support_employees")
+}
+
+model SupportTicket {
+  id                 String    @id
+  requestNumber      String    @unique
+  activationEmail    String
+  productType        String
+  description        String    @db.Text
+  category           String
+  priority           String    @default("NORMAL")
+  status             String    @default("NEW")
+  customerNotified   Boolean   @default(false)
+  customerNotifiedBy String?
+  customerNotifiedAt DateTime?
+  customerContact    String?
+  employeeId         String
+  employeeName       String
+  assignedTo         String?
+  internalNotes      String?   @db.Text
+  referenceNumber    String?
+  attachments        Json      @default("[]")
+  mediaLinks         Json      @default("[]")
+  comments           Json      @default("[]")
+  activityLog        Json      @default("[]")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@map("support_tickets")
+}
+
 model Counter {
   id    String @id
   value Int    @default(0)

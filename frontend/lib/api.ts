@@ -11,11 +11,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Redirect to login if token expires
+// Redirect to login if token expires (skip support routes — they have their own auth)
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    const url: string = err.config?.url || "";
+    if (err.response?.status === 401 && !url.startsWith("/api/support/")) {
       localStorage.removeItem("token");
       window.location.href = "/login";
     }
@@ -37,6 +38,8 @@ export const forgotPassword = (email: string) =>
 
 export const resetPassword = (token: string, password: string) =>
   api.post("/api/auth/reset-password", { token, password });
+
+export const refreshToken = () => api.post("/api/auth/refresh");
 
 // ── Products ─────────────────────────────────────────────────────────────────
 export const getProducts = () => api.get("/api/products");
@@ -157,3 +160,81 @@ export const updateProduct = (id: string, data: { name?: string; description?: s
 
 export const deleteProduct = (id: string) =>
   api.delete(`/api/admin/products/${id}`);
+
+// ── Support (separate axios instance using support token or admin token) ──────
+const getSupportAuthToken = () => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("support_token") || localStorage.getItem("token");
+};
+
+const apiSupport = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000",
+});
+
+apiSupport.interceptors.request.use((config) => {
+  const token = getSupportAuthToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+apiSupport.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401 && typeof window !== "undefined") {
+      localStorage.removeItem("support_token");
+      localStorage.removeItem("support_session");
+      window.location.href = "/support/login";
+    }
+    return Promise.reject(err);
+  }
+);
+
+// ── Support Employees ────────────────────────────────────────────────────────
+export const supportLogin = (email: string, password: string) =>
+  api.post("/api/support/login", { email, password });
+
+export const getSupportEmployees = () => api.get("/api/support/employees");
+
+export const createSupportEmployee = (name: string, email: string, password: string) =>
+  api.post("/api/support/employees", { name, email, password });
+
+export const updateSupportEmployee = (id: string, data: { password?: string; telegramChatId?: string }) =>
+  api.patch(`/api/support/employees/${id}`, data);
+
+export const deleteSupportEmployee = (id: string) =>
+  api.delete(`/api/support/employees/${id}`);
+
+// ── Support Tickets ───────────────────────────────────────────────────────────
+export const getSupportTickets = () =>
+  apiSupport.get("/api/support/tickets");
+
+export const createSupportTicket = (data: {
+  requestNumber: string;
+  activationEmail: string;
+  productType: string;
+  description: string;
+  category: string;
+  priority: string;
+  customerContact?: string;
+  referenceNumber?: string;
+  attachments?: any[];
+  mediaLinks?: string[];
+}) => apiSupport.post("/api/support/tickets", data);
+
+export const getSupportTicket = (id: string) =>
+  apiSupport.get(`/api/support/tickets/${id}`);
+
+export const updateSupportTicketStatus = (id: string, status: string, note?: string) =>
+  apiSupport.patch(`/api/support/tickets/${id}/status`, { status, note });
+
+export const addSupportComment = (id: string, comment: {
+  content: string;
+  isAdminNote?: boolean;
+  isInfoRequest?: boolean;
+}) => apiSupport.post(`/api/support/tickets/${id}/comments`, comment);
+
+export const markSupportTicketNotified = (id: string) =>
+  apiSupport.patch(`/api/support/tickets/${id}/notify`);
+
+export const deleteSupportTicketApi = (id: string) =>
+  apiSupport.delete(`/api/support/tickets/${id}`);

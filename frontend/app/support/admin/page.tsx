@@ -17,11 +17,9 @@ import {
 } from "@/lib/api";
 import {
   getSupportEmployees, createSupportEmployee, deleteSupportEmployee, updateSupportEmployee,
+  getTelegramSettings, saveTelegramSettings, testTelegramSettings,
 } from "@/lib/api";
-import {
-  getTelegramConfig, setTelegramConfig, testTelegramConnection,
-  TelegramConfig,
-} from "../telegram";
+import type { TelegramConfig } from "../telegram";
 
 interface SupportEmployee {
   id: string;
@@ -153,8 +151,8 @@ export default function SupportAdminPage() {
     if (s.role !== "ADMIN") { router.push("/support/employee"); return; }
     setUser({ name: s.name, role: s.role, id: s.id });
     fetchTickets();
-    setTgConfig(getTelegramConfig());
     getSupportEmployees().then(r => setEmployees(r.data)).catch(() => {});
+    getTelegramSettings().then(r => setTgConfig(r.data)).catch(() => {});
 
     const interval = setInterval(fetchTickets, 15_000);
     return () => clearInterval(interval);
@@ -286,17 +284,24 @@ export default function SupportAdminPage() {
     }
   };
 
-  const handleSaveTgConfig = () => {
-    setTelegramConfig(tgConfig);
-    setTgSaved(true);
-    setTimeout(() => setTgSaved(false), 2500);
+  const handleSaveTgConfig = async () => {
+    try {
+      await saveTelegramSettings(tgConfig.botToken, tgConfig.adminChatId);
+      setTgSaved(true);
+      setTimeout(() => setTgSaved(false), 2500);
+    } catch {}
   };
 
   const handleTestTelegram = async (target: "admin" | "emp") => {
     setTgTesting(target); setTgTestResult(null);
     const chatId = target === "admin" ? tgConfig.adminChatId : tgTestEmpId;
-    const result = await testTelegramConnection(tgConfig.botToken, chatId);
-    setTgTestResult(result); setTgTesting(null);
+    try {
+      const res = await testTelegramSettings(tgConfig.botToken, chatId);
+      setTgTestResult(res.data);
+    } catch {
+      setTgTestResult({ ok: false, error: "فشل الاتصال" });
+    }
+    setTgTesting(null);
   };
 
   if (!user) return null;

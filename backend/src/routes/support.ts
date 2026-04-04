@@ -5,6 +5,10 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 import { requireAdmin } from "../middleware/adminOnly";
+import {
+  notifyNewTicket, notifyTicketResolved, notifyInfoRequested,
+  saveTgConfig, getTgConfig, sendTgMessage,
+} from "../services/supportTelegram";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET!;
@@ -194,6 +198,32 @@ router.delete("/employees/:id", requireAuth, requireAdmin, async (req: AuthReque
   }
 });
 
+// ── GET /api/support/settings/telegram ───────────────────────────────────────
+router.get("/settings/telegram", requireAuth, requireAdmin, async (_req, res: Response) => {
+  const config = await getTgConfig();
+  return res.json(config);
+});
+
+// ── PATCH /api/support/settings/telegram ──────────────────────────────────────
+router.patch("/settings/telegram", requireAuth, requireAdmin, async (req: Request, res: Response) => {
+  const { botToken, adminChatId } = z.object({
+    botToken:    z.string(),
+    adminChatId: z.string(),
+  }).parse(req.body);
+  await saveTgConfig(botToken, adminChatId);
+  return res.json({ ok: true });
+});
+
+// ── POST /api/support/settings/telegram/test ──────────────────────────────────
+router.post("/settings/telegram/test", requireAuth, requireAdmin, async (req: Request, res: Response) => {
+  const { botToken, chatId } = z.object({
+    botToken: z.string(),
+    chatId:   z.string(),
+  }).parse(req.body);
+  const result = await sendTgMessage(botToken, chatId, "✅ <b>اتصال ناجح!</b>\nنظام دعم العملاء متصل بالتليجرام بنجاح 🎫");
+  return res.json(result);
+});
+
 // ── GET /api/support/tickets ──────────────────────────────────────────────────
 router.get("/tickets", requireSupportAuth, async (req: SupportAuthRequest, res: Response) => {
   const user = req.supportUser!;
@@ -249,6 +279,7 @@ router.post("/tickets", requireSupportAuth, async (req: SupportAuthRequest, res:
     },
   });
 
+  void notifyNewTicket(ticket);
   return res.status(201).json(formatTicket(ticket));
 });
 
@@ -283,6 +314,7 @@ router.patch("/tickets/:id/status", requireSupportAuth, async (req: SupportAuthR
     data: { status, activityLog: [...oldLog, entry], updatedAt: new Date() },
   });
 
+  if (status === "RESOLVED") void notifyTicketResolved(updated);
   return res.json(formatTicket(updated));
 });
 
@@ -332,6 +364,7 @@ router.post("/tickets/:id/comments", requireSupportAuth, async (req: SupportAuth
     data: updateData,
   });
 
+  if (isInfoRequest) void notifyInfoRequested(updated, content);
   return res.json(formatTicket(updated));
 });
 

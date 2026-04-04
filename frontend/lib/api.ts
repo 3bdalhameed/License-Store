@@ -238,3 +238,13 @@ export const markSupportTicketNotified = (id: string) =>
 
 export const deleteSupportTicketApi = (id: string) =>
   apiSupport.delete(`/api/support/tickets/${id}`);
+
+// ── Telegram settings (use main admin token) ──────────────────────────────────
+export const getTelegramSettings = () =>
+  api.get("/api/support/settings/telegram");
+
+export const saveTelegramSettings = (botToken: string, adminChatId: string) =>
+  api.patch("/api/support/settings/telegram", { botToken, adminChatId });
+
+export const testTelegramSettings = (botToken: string, chatId: string) =>
+  api.post("/api/support/settings/telegram/test", { botToken, chatId });

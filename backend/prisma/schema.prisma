@@ -145,6 +145,15 @@ model SupportEmployee {
   @@map("support_employees")
 }
 
+model SupportSettings {
+  id          String   @id @default("default")
+  botToken    String   @default("")
+  adminChatId String   @default("")
+  updatedAt   DateTime @updatedAt
+
+  @@map("support_settings")
+}
+
 model SupportTicket {
   id                 String    @id
   requestNumber      String    @unique

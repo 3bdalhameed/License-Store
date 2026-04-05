@@ -29,7 +29,7 @@ interface NavbarProps {
 export default function Navbar({ userName, credits, isAdmin }: NavbarProps) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  useIdleTimer();
+  useIdleTimer(isAdmin);
 
   const handleLogout = () => {
     localStorage.removeItem("token");

@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { TicketCategory, TicketPriority, CATEGORY_CONFIG, PRIORITY_CONFIG } from "../../types";
 import { getSupportUser, clearSupportSession } from "../../auth";
-import { createSupportTicket } from "@/lib/api";
+import { createSupportTicket, uploadSupportImage } from "@/lib/api";
 
 const PURPLE = "#702dff";
 const inp: React.CSSProperties = {
@@ -38,9 +38,11 @@ export default function NewTicketPage() {
   const [category,        setCategory]        = useState<TicketCategory>("ACTIVATION");
   const [priority,        setPriority]        = useState<TicketPriority>("NORMAL");
   const [customerContact, setCustomerContact] = useState("");
+  const [accountPassword, setAccountPassword] = useState("");
 
   // Media: direct uploads
-  const [attachments, setAttachments] = useState<{ id: string; name: string; dataUrl: string; size: number }[]>([]);
+  const [attachments, setAttachments] = useState<{ id: string; name: string; dataUrl: string; size: number; isDriveUrl?: boolean }[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
   // Media: video links only
   const [mediaLinks,    setMediaLinks]    = useState<string[]>([]);
   const [linkInputVal,  setLinkInputVal]  = useState("");
@@ -63,12 +65,24 @@ export default function NewTicketPage() {
     Array.from(files).forEach(file => {
       if (!file.type.startsWith("image/")) return;
       const reader = new FileReader();
-      reader.onload = e => {
+      reader.onload = async e => {
         const dataUrl = e.target?.result as string;
-        setAttachments(prev => [...prev, {
-          id: Math.random().toString(36).slice(2),
-          name: file.name, dataUrl, size: file.size,
-        }]);
+        const tempId = Math.random().toString(36).slice(2);
+        // Show preview immediately with base64
+        setAttachments(prev => [...prev, { id: tempId, name: file.name, dataUrl, size: file.size }]);
+        // Then upload to Google Drive in the background
+        setUploadingImage(true);
+        try {
+          const res = await uploadSupportImage(file.name, file.type, dataUrl);
+          const { viewUrl } = res.data;
+          setAttachments(prev => prev.map(a =>
+            a.id === tempId ? { ...a, dataUrl: viewUrl, isDriveUrl: true } : a
+          ));
+        } catch {
+          // Keep base64 as fallback if Drive upload fails
+        } finally {
+          setUploadingImage(false);
+        }
       };
       reader.readAsDataURL(file);
     });
@@ -113,6 +127,12 @@ export default function NewTicketPage() {
     if (!validate() || !user) return;
     setSubmitting(true);
     try {
+      // For Drive-uploaded images, only send the URL (not base64)
+      const attachmentsToSend = attachments.map(a =>
+        a.isDriveUrl
+          ? { id: a.id, name: a.name, dataUrl: a.dataUrl, size: a.size, isDriveUrl: true }
+          : { id: a.id, name: a.name, dataUrl: a.dataUrl, size: a.size }
+      );
       const res = await createSupportTicket({
         requestNumber:   requestNumber.trim(),
         activationEmail: activationEmail.trim(),
@@ -120,7 +140,8 @@ export default function NewTicketPage() {
         description:     description.trim(),
         category, priority,
         customerContact:  customerContact.trim() || undefined,
-        attachments,
+        accountPassword:  accountPassword.trim() || undefined,
+        attachments:      attachmentsToSend,
         mediaLinks: mediaLinks.length > 0 ? mediaLinks : undefined,
       });
       setCreated(res.data.id);
@@ -141,7 +162,7 @@ export default function NewTicketPage() {
   const resetForm = () => {
     setCreated(null);
     setRequestNumber(""); setActivationEmail(""); setProductType("");
-    setDescription(""); setCustomerContact("");
+    setDescription(""); setCustomerContact(""); setAccountPassword("");
     setAttachments([]); setMediaLinks([]); setLinkInputVal("");
     setErrors({});
   };
@@ -237,6 +258,20 @@ export default function NewTicketPage() {
               <div>
                 <label style={lbl}>طريقة التواصل مع العميل <span style={{ color: "#9ca3af", fontWeight: 400 }}>(اختياري)</span></label>
                 <input value={customerContact} onChange={e => setCustomerContact(e.target.value)} placeholder="واتساب: +962..." style={inp} />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={lbl}>
+                  🔑 كلمة مرور الحساب{" "}
+                  <span style={{ color: "#9ca3af", fontWeight: 400 }}>(اختياري — لحفظها بشكل آمن في التذكرة)</span>
+                </label>
+                <input
+                  type="text"
+                  value={accountPassword}
+                  onChange={e => setAccountPassword(e.target.value)}
+                  placeholder="كلمة مرور الحساب / المنتج"
+                  style={{ ...inp, fontFamily: "monospace", direction: "ltr", textAlign: "left" }}
+                  autoComplete="new-password"
+                />
               </div>
             </div>
 
@@ -368,11 +403,20 @@ export default function NewTicketPage() {
               <p style={{ fontSize: "0.72rem", color: "#9ca3af", marginTop: "0.15rem" }}>PNG, JPG, WEBP — يمكن رفع عدة صور</p>
             </div>
 
+            {uploadingImage && (
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.6rem", fontFamily: "Tajawal,sans-serif", fontSize: "0.78rem", color: "#702dff" }}>
+                <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
+                جارٍ رفع الصور إلى Google Drive…
+              </div>
+            )}
             {attachments.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.65rem", marginTop: "0.85rem" }}>
                 {attachments.map(a => (
-                  <div key={a.id} style={{ position: "relative", width: 88, height: 88, borderRadius: 10, overflow: "hidden", border: `1.5px solid rgba(112,45,255,.2)` }}>
+                  <div key={a.id} style={{ position: "relative", width: 88, height: 88, borderRadius: 10, overflow: "hidden", border: `1.5px solid ${a.isDriveUrl ? "#86efac" : "rgba(112,45,255,.2)"}` }}>
                     <img src={a.dataUrl} alt={a.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    {a.isDriveUrl && (
+                      <div style={{ position: "absolute", bottom: 2, right: 2, background: "#16a34a", borderRadius: 4, padding: "1px 5px", fontSize: "0.55rem", color: "#fff", fontWeight: 700 }}>Drive ✓</div>
+                    )}
                     <button type="button" onClick={() => setAttachments(prev => prev.filter(x => x.id !== a.id))}
                       style={{ position: "absolute", top: 3, left: 3, width: 20, height: 20, borderRadius: "50%", background: "rgba(0,0,0,.65)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <X style={{ width: 11, height: 11, color: "#fff" }} />

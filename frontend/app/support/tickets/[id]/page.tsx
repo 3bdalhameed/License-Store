@@ -33,6 +33,23 @@ function formatFull(iso: string) {
   });
 }
 
+// ── Password field with show/hide toggle ─────────────────────────────────────
+function PasswordField({ value }: { value: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+      <code style={{ fontFamily: "monospace", fontSize: "0.9rem", color: "#78350f", fontWeight: 700, direction: "ltr", letterSpacing: show ? "0.04em" : "0.2em" }}>
+        {show ? value : "••••••••"}
+      </code>
+      <button
+        onClick={() => setShow(s => !s)}
+        style={{ background: "none", border: "1px solid #fcd34d", borderRadius: 6, padding: "0.15rem 0.5rem", cursor: "pointer", fontSize: "0.72rem", color: "#92400e", fontFamily: "Tajawal,sans-serif", fontWeight: 700 }}>
+        {show ? "إخفاء" : "إظهار"}
+      </button>
+    </div>
+  );
+}
+
 // ── Badges ────────────────────────────────────────────────────────────────────
 function StatusBadge({ status, large }: { status: TicketStatus; large?: boolean }) {
   const c = STATUS_CONFIG[status];
@@ -279,16 +296,14 @@ export default function TicketDetailPage() {
 
         {/* ── Alert Banners ──────────────────────────────────────────────── */}
         {isNeedsInfo && (
-          <div style={{ background: "#fffbeb", border: "1.5px solid #fcd34d", borderRadius: 14, padding: "0.9rem 1.1rem", marginBottom: "0.9rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <span style={{ fontSize: "1.25rem", flexShrink: 0 }}>❓</span>
+          <div style={{ background: "#fffbeb", border: "2px solid #f97316", borderRadius: 14, padding: "0.9rem 1.1rem", marginBottom: "0.9rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <span style={{ fontSize: "1.4rem", flexShrink: 0 }}>❓</span>
             <div>
-              <div style={{ fontFamily: "Tajawal,sans-serif", fontWeight: 800, color: "#92400e", fontSize: "0.9rem" }}>
+              <div style={{ fontFamily: "Tajawal,sans-serif", fontWeight: 800, color: "#92400e", fontSize: "0.92rem" }}>
                 التذكرة تنتظر معلومات إضافية
               </div>
               <div style={{ fontFamily: "Tajawal,sans-serif", fontSize: "0.78rem", color: "#78350f", marginTop: "0.15rem" }}>
-                {isAdmin
-                  ? "بانتظار رد الموظف على طلب المعلومات المرسل"
-                  : "يرجى إضافة المعلومات المطلوبة من الإدارة في قسم المحادثة أدناه"}
+                يرجى إضافة المعلومات المطلوبة من الإدارة في قسم المحادثة أدناه
               </div>
             </div>
           </div>
@@ -329,7 +344,6 @@ export default function TicketDetailPage() {
                 {[
                   { label: "رقم الطلب",            value: ticket.requestNumber },
                   { label: "إيميل التفعيل",         value: ticket.activationEmail,    ltr: true },
-                  { label: "المنتج / الاشتراك",     value: ticket.productType },
                   { label: "التواصل مع العميل",     value: ticket.customerContact || "—" },
                   { label: "الموظف المسؤول",        value: ticket.employeeName },
                   { label: "رقم المرجع الداخلي",    value: ticket.referenceNumber || "—" },
@@ -340,6 +354,24 @@ export default function TicketDetailPage() {
                   </div>
                 ))}
               </div>
+              {/* Product type — prominent row */}
+              <div style={{ background: "linear-gradient(135deg,#f5f4ff,#ede9fe)", borderRadius: 12, padding: "0.75rem 1rem", border: "1.5px solid rgba(112,45,255,.2)", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                <span style={{ fontSize: "1.2rem" }}>📦</span>
+                <div>
+                  <div style={{ fontFamily: "Tajawal,sans-serif", fontSize: "0.7rem", color: "#9ca3af", fontWeight: 600 }}>نوع المنتج / الاشتراك</div>
+                  <div style={{ fontFamily: "Tajawal,sans-serif", fontSize: "1rem", color: PURPLE, fontWeight: 900 }}>{ticket.productType}</div>
+                </div>
+              </div>
+              {/* Account password — shown only if set */}
+              {ticket.accountPassword && (
+                <div style={{ background: "#fffbeb", borderRadius: 12, padding: "0.75rem 1rem", border: "1.5px solid #fcd34d", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                  <span style={{ fontSize: "1.2rem" }}>🔑</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: "Tajawal,sans-serif", fontSize: "0.7rem", color: "#9ca3af", fontWeight: 600 }}>كلمة مرور الحساب</div>
+                    <PasswordField value={ticket.accountPassword} />
+                  </div>
+                </div>
+              )}
               {/* Description */}
               <div style={{ marginBottom: ticket.internalNotes ? "0.85rem" : 0 }}>
                 <div style={{ fontFamily: "Tajawal,sans-serif", fontSize: "0.75rem", color: "#9ca3af", fontWeight: 600, marginBottom: "0.4rem" }}>وصف المشكلة</div>
@@ -520,22 +552,46 @@ export default function TicketDetailPage() {
                     const a = item.data;
                     const adm = a.performedByRole === "admin";
                     return (
-                      <div key={`a-${a.id}-${idx}`} className="tl-card" style={{ display: "flex", gap: "0.6rem", alignItems: "flex-start" }}>
-                        <div style={{ width: 26, height: 26, borderRadius: "50%", background: adm ? "#f5f4ff" : "#f0fdf4", border: `1.5px solid ${adm ? "rgba(112,45,255,.25)" : "#86efac"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "0.15rem", fontSize: "0.65rem" }}>
-                          {adm ? "🛡️" : "👤"}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", flexWrap: "wrap" }}>
-                            <span style={{ fontFamily: "Tajawal,sans-serif", fontWeight: 700, fontSize: "0.78rem", color: "#374151" }}>{a.performedBy}</span>
-                            <span style={{ fontFamily: "Tajawal,sans-serif", fontSize: "0.75rem", color: "#6b7280" }}>{a.action}</span>
-                            <span style={{ marginRight: "auto", fontSize: "0.67rem", color: "#9ca3af", whiteSpace: "nowrap" }} title={formatFull(a.createdAt)}>{formatRelative(a.createdAt)}</span>
-                          </div>
-                          {a.details && (
-                            <div style={{ marginTop: "0.25rem", fontFamily: "Tajawal,sans-serif", fontSize: "0.75rem", color: "#6b7280", background: "#f9f9ff", borderRadius: 7, padding: "0.3rem 0.6rem", border: "1px solid #f0f0f5" }}>
-                              {a.details}
+                      <div key={`a-${a.id}-${idx}`} className="tl-card"
+                        style={adm && a.details && a.action.includes("تغيير الحالة") ? { background: "#f5f4ff", border: "2px solid rgba(112,45,255,.35)", borderRadius: 14, padding: "1rem 1.1rem" } : { display: "flex", gap: "0.6rem", alignItems: "flex-start" }}>
+                        {adm && a.details && a.action.includes("تغيير الحالة") ? (
+                          <>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
+                              <div style={{ width: 30, height: 30, borderRadius: "50%", background: PURPLE, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", flexShrink: 0 }}>🛡️</div>
+                              <div>
+                                <div style={{ fontFamily: "Tajawal,sans-serif", fontWeight: 800, fontSize: "0.82rem", color: PURPLE }}>{a.performedBy}</div>
+                                <div style={{ fontFamily: "Tajawal,sans-serif", fontSize: "0.72rem", color: "#6b7280" }}>{a.action}</div>
+                              </div>
+                              <span style={{ marginRight: "auto", fontSize: "0.68rem", color: "#9ca3af", whiteSpace: "nowrap" }} title={formatFull(a.createdAt)}>{formatRelative(a.createdAt)}</span>
                             </div>
-                          )}
-                        </div>
+                            <div style={{ background: "#fff", border: "1.5px solid rgba(112,45,255,.2)", borderRadius: 10, padding: "0.85rem 1rem" }}>
+                              <div style={{ fontFamily: "Tajawal,sans-serif", fontSize: "0.68rem", color: PURPLE, fontWeight: 700, marginBottom: "0.4rem" }}>
+                                📝 ملاحظة الإدارة على تغيير الحالة
+                              </div>
+                              <div style={{ fontFamily: "Tajawal,sans-serif", fontSize: "0.92rem", fontWeight: 700, color: "#090040", lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
+                                {a.details}
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ width: 26, height: 26, borderRadius: "50%", background: adm ? "#f5f4ff" : "#f0fdf4", border: `1.5px solid ${adm ? "rgba(112,45,255,.25)" : "#86efac"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "0.15rem", fontSize: "0.65rem" }}>
+                              {adm ? "🛡️" : "👤"}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", flexWrap: "wrap" }}>
+                                <span style={{ fontFamily: "Tajawal,sans-serif", fontWeight: 700, fontSize: "0.78rem", color: "#374151" }}>{a.performedBy}</span>
+                                <span style={{ fontFamily: "Tajawal,sans-serif", fontSize: "0.75rem", color: "#6b7280" }}>{a.action}</span>
+                                <span style={{ marginRight: "auto", fontSize: "0.67rem", color: "#9ca3af", whiteSpace: "nowrap" }} title={formatFull(a.createdAt)}>{formatRelative(a.createdAt)}</span>
+                              </div>
+                              {a.details && (
+                                <div style={{ marginTop: "0.25rem", fontFamily: "Tajawal,sans-serif", fontSize: "0.75rem", color: "#6b7280", background: "#f9f9ff", borderRadius: 7, padding: "0.3rem 0.6rem", border: "1px solid #f0f0f5" }}>
+                                  {a.details}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </div>
                     );
                   }
@@ -643,24 +699,29 @@ export default function TicketDetailPage() {
               {!isAdmin && !isClosed && (
                 <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: "1rem" }}>
                   {isNeedsInfo && (
-                    <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 9, padding: "0.55rem 0.8rem", marginBottom: "0.65rem", fontFamily: "Tajawal,sans-serif", fontSize: "0.78rem", color: "#92400e", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                      ⬇️ قدّم المعلومات المطلوبة من الإدارة هنا
+                    <div style={{ background: "#fef3c7", border: "2px solid #f59e0b", borderRadius: 12, padding: "0.75rem 1rem", marginBottom: "0.75rem" }}>
+                      <div style={{ fontFamily: "Tajawal,sans-serif", fontWeight: 900, color: "#92400e", fontSize: "0.9rem", marginBottom: "0.3rem" }}>
+                        ⚠️ الإدارة تنتظر ردك — أرسل المعلومات المطلوبة أدناه
+                      </div>
+                      <div style={{ fontFamily: "Tajawal,sans-serif", fontSize: "0.75rem", color: "#78350f" }}>
+                        بعد إرسالك ستتغير الحالة تلقائياً إلى "قيد المراجعة"
+                      </div>
                     </div>
                   )}
                   <textarea
                     value={commentText}
                     onChange={e => setCommentText(e.target.value)}
                     placeholder={isNeedsInfo ? "أدخل المعلومات المطلوبة هنا..." : "أضف تعليقاً أو معلومة..."}
-                    rows={3}
-                    style={{ ...inp, resize: "vertical", borderColor: isNeedsInfo ? "#fcd34d" : "#e5e7eb" }}
+                    rows={isNeedsInfo ? 4 : 3}
+                    style={{ ...inp, resize: "vertical", borderColor: isNeedsInfo ? "#f59e0b" : "#e5e7eb", borderWidth: isNeedsInfo ? 2 : 1.5 }}
                   />
                   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.65rem" }}>
                     <button
                       onClick={() => handleAddComment(false)}
                       disabled={!commentText.trim() || sendingComment}
-                      style={{ background: commentText.trim() ? (isNeedsInfo ? "#d97706" : `linear-gradient(135deg,${PURPLE},#9044ff)`) : "#e5e7eb", border: "none", borderRadius: 9, padding: "0.55rem 1.25rem", cursor: commentText.trim() ? "pointer" : "not-allowed", color: commentText.trim() ? "#fff" : "#9ca3af", fontFamily: "Tajawal,sans-serif", fontWeight: 700, fontSize: "0.82rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                      style={{ background: commentText.trim() ? (isNeedsInfo ? "linear-gradient(135deg,#d97706,#b45309)" : `linear-gradient(135deg,${PURPLE},#9044ff)`) : "#e5e7eb", border: "none", borderRadius: 9, padding: "0.6rem 1.4rem", cursor: commentText.trim() ? "pointer" : "not-allowed", color: commentText.trim() ? "#fff" : "#9ca3af", fontFamily: "Tajawal,sans-serif", fontWeight: 800, fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.4rem", boxShadow: commentText.trim() && isNeedsInfo ? "0 3px 12px rgba(217,119,6,.35)" : "none" }}>
                       {sendingComment ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} /> : <Send style={{ width: 14, height: 14 }} />}
-                      {isNeedsInfo ? "إرسال المعلومات المطلوبة" : "إرسال التعليق"}
+                      {isNeedsInfo ? "✅ إرسال المعلومات المطلوبة" : "إرسال التعليق"}
                     </button>
                   </div>
                 </div>
@@ -681,7 +742,16 @@ export default function TicketDetailPage() {
             <div style={{ ...card, padding: "1.1rem" }}>
               <div style={{ ...sec, marginBottom: "0.75rem" }}>📊 معلومات التذكرة</div>
               {[
-                { label: "الحالة",         content: <StatusBadge status={ticket.status} /> },
+                {
+                  label: "الحالة",
+                  content: isNeedsInfo
+                    ? (
+                      <span style={{ background: "#fef3c7", color: "#92400e", border: "1.5px solid #fcd34d", borderRadius: 20, padding: "0.22rem 0.7rem", fontSize: "0.7rem", fontWeight: 700, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                        ❓ يحتاج معلومات إضافية
+                      </span>
+                    )
+                    : <StatusBadge status={ticket.status} />,
+                },
                 {
                   label: "الأولوية",
                   content: (

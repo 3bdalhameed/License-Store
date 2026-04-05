@@ -156,7 +156,7 @@ model SupportSettings {
 
 model SupportTicket {
   id                 String    @id
-  requestNumber      String    @unique
+  requestNumber      String
   activationEmail    String
   productType        String
   description        String    @db.Text
@@ -172,6 +172,7 @@ model SupportTicket {
   assignedTo         String?
   internalNotes      String?   @db.Text
   referenceNumber    String?
+  accountPassword    String?
   attachments        Json      @default("[]")
   mediaLinks         Json      @default("[]")
   comments           Json      @default("[]")

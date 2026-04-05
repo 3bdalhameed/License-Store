@@ -40,8 +40,11 @@ export interface ActivityLogEntry {
 export interface Attachment {
   id: string;
   name: string;
+  /** base64 data URL or Google Drive view URL */
   dataUrl: string;
   size: number;
+  /** true when uploaded to Google Drive (dataUrl is a remote URL) */
+  isDriveUrl?: boolean;
 }
 
 export interface Ticket {
@@ -62,6 +65,7 @@ export interface Ticket {
   assignedTo?: string;
   internalNotes?: string;
   referenceNumber?: string;
+  accountPassword?: string;
   attachments: Attachment[];
   mediaLinks?: string[];
   comments: TicketComment[];

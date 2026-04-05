@@ -69,7 +69,8 @@ async function cleanupOldOrders() {
     console.error("Order cleanup error:", err);
   }
 }
-cleanupOldOrders();
+// Run once after 1 hour on startup (not immediately, to avoid deleting on every nodemon restart)
+setTimeout(cleanupOldOrders, 60 * 60 * 1000);
 setInterval(cleanupOldOrders, 24 * 60 * 60 * 1000);
 
 app.listen(PORT, () => {

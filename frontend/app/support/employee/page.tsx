@@ -200,6 +200,11 @@ export default function EmployeePage() {
                         <span style={{ fontSize: "0.72rem", color: "#9ca3af" }}>{CATEGORY_CONFIG[t.category].icon} {CATEGORY_CONFIG[t.category].label}</span>
                       </div>
                       <div style={{ fontFamily: "Tajawal,sans-serif", fontWeight: 700, fontSize: "0.9rem", color: "#090040", marginBottom: "0.2rem" }}>{t.activationEmail}</div>
+                      {/* Product type — prominent badge */}
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", background: "linear-gradient(135deg,#f5f4ff,#ede9fe)", border: "1.5px solid rgba(112,45,255,.25)", borderRadius: 8, padding: "0.2rem 0.6rem", marginBottom: "0.3rem" }}>
+                        <span style={{ fontSize: "0.7rem" }}>📦</span>
+                        <span style={{ fontFamily: "Tajawal,sans-serif", fontWeight: 800, fontSize: "0.78rem", color: "#702dff" }}>{t.productType}</span>
+                      </div>
                       <div style={{ fontSize: "0.78rem", color: "#6b7280", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}>{t.description}</div>
 
                       {/* Info request preview */}

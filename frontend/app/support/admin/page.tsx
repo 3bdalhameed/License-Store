@@ -661,7 +661,10 @@ export default function SupportAdminPage() {
                       </td>
                       <td style={{ padding: "0.7rem 0.9rem" }}>
                         <div style={{ fontSize: "0.82rem", color: "#090040", fontWeight: 700 }}>{t.activationEmail}</div>
-                        <div style={{ fontSize: "0.7rem", color: "#9ca3af", marginTop: "0.1rem" }}>{CATEGORY_CONFIG[t.category].icon} {t.productType}</div>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", background: "#f5f4ff", border: "1px solid rgba(112,45,255,.2)", borderRadius: 6, padding: "0.1rem 0.45rem", marginTop: "0.2rem" }}>
+                          <span style={{ fontSize: "0.65rem" }}>📦</span>
+                          <span style={{ fontSize: "0.72rem", color: "#702dff", fontWeight: 700, fontFamily: "Tajawal,sans-serif" }}>{t.productType}</span>
+                        </div>
                       </td>
                       <td style={{ padding: "0.7rem 0.9rem" }}><StatusBadge status={t.status} /></td>
                       <td style={{ padding: "0.7rem 0.9rem" }}><PriorityBadge priority={t.priority} /></td>

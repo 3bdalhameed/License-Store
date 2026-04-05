@@ -9,6 +9,7 @@ import {
   notifyNewTicket, notifyStatusChanged, notifyInfoRequested,
   saveTgConfig, getTgConfig, sendTgMessage,
 } from "../services/supportTelegram";
+import { uploadImageToDrive } from "../services/googleDrive";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET!;
@@ -88,6 +89,7 @@ function formatTicket(t: any) {
     assignedTo: t.assignedTo ?? undefined,
     internalNotes: t.internalNotes ?? undefined,
     referenceNumber: t.referenceNumber ?? undefined,
+    accountPassword: t.accountPassword ?? undefined,
     attachments: t.attachments ?? [],
     mediaLinks: t.mediaLinks ?? [],
     comments: t.comments ?? [],
@@ -225,6 +227,27 @@ router.post("/settings/telegram/test", requireAuth, requireAdmin, async (req: Re
   return res.json(result);
 });
 
+// ── POST /api/support/upload-image ───────────────────────────────────────────
+router.post("/upload-image", requireSupportAuth, async (req: SupportAuthRequest, res: Response) => {
+  try {
+    const { filename, mimeType, data } = z.object({
+      filename: z.string().min(1),
+      mimeType: z.string().startsWith("image/"),
+      data:     z.string().min(1),
+    }).parse(req.body);
+
+    if (!process.env.GOOGLE_DRIVE_FOLDER_ID) {
+      return res.status(503).json({ error: "Google Drive غير مهيأ — أضف GOOGLE_DRIVE_FOLDER_ID في .env" });
+    }
+
+    const result = await uploadImageToDrive(filename, mimeType, data);
+    return res.json(result);
+  } catch (err: any) {
+    console.error("[Drive] upload error:", err?.message || err);
+    return res.status(500).json({ error: "فشل رفع الصورة إلى Google Drive" });
+  }
+});
+
 // ── GET /api/support/tickets ──────────────────────────────────────────────────
 router.get("/tickets", requireSupportAuth, async (req: SupportAuthRequest, res: Response) => {
   const user = req.supportUser!;
@@ -239,15 +262,12 @@ router.get("/tickets", requireSupportAuth, async (req: SupportAuthRequest, res: 
 // ── POST /api/support/tickets ─────────────────────────────────────────────────
 router.post("/tickets", requireSupportAuth, async (req: SupportAuthRequest, res: Response) => {
   const user = req.supportUser!;
-  const { requestNumber, activationEmail, productType, description, category, priority, customerContact, referenceNumber, attachments, mediaLinks, assignedTo } = req.body;
+  const { requestNumber, activationEmail, productType, description, category, priority, customerContact, referenceNumber, attachments, mediaLinks, assignedTo, accountPassword } = req.body;
 
   if (!requestNumber?.trim())
     return res.status(400).json({ error: "رقم الطلب مطلوب" });
 
-  const existing = await prisma.supportTicket.findUnique({ where: { requestNumber: requestNumber.trim() } });
-  if (existing) return res.status(409).json({ error: "رقم الطلب مستخدم بالفعل" });
-
-  const n    = await nextCounter("support_ticket");
+const n    = await nextCounter("support_ticket");
   const year = new Date().getFullYear();
   const id   = `TKT-${year}-${String(n).padStart(4, "0")}`;
   const now = new Date().toISOString();
@@ -281,15 +301,27 @@ router.post("/tickets", requireSupportAuth, async (req: SupportAuthRequest, res:
     },
   });
 
+  // Set accountPassword via raw SQL (Prisma client not yet regenerated for this column)
+  if (accountPassword?.trim()) {
+    await prisma.$executeRawUnsafe(
+      `UPDATE support_tickets SET "accountPassword" = $1 WHERE id = $2`,
+      accountPassword.trim(), id
+    );
+  }
+
   notifyNewTicket(ticket).catch(e => console.error("[Telegram] notifyNewTicket error:", e));
-  return res.status(201).json(formatTicket(ticket));
+  return res.status(201).json(formatTicket({ ...ticket, accountPassword: accountPassword?.trim() || null }));
 });
 
 // ── GET /api/support/tickets/:id ──────────────────────────────────────────────
 router.get("/tickets/:id", requireSupportAuth, async (req: SupportAuthRequest, res: Response) => {
   const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id } });
   if (!ticket) return res.status(404).json({ error: "التذكرة غير موجودة" });
-  return res.json(formatTicket(ticket));
+  const raw = await prisma.$queryRawUnsafe<any[]>(
+    `SELECT "accountPassword" FROM support_tickets WHERE id = $1`,
+    req.params.id
+  );
+  return res.json(formatTicket({ ...ticket, accountPassword: raw[0]?.accountPassword ?? null }));
 });
 
 // ── PATCH /api/support/tickets/:id/status ─────────────────────────────────────
@@ -396,7 +428,27 @@ router.post("/tickets/:id/comments", requireSupportAuth, async (req: SupportAuth
     activityLog: [...oldLog, logEntry],
     updatedAt:   new Date(),
   };
-  if (isInfoRequest) updateData.status = "ADDITIONAL_INFO_REQUIRED";
+  if (isInfoRequest) {
+    updateData.status = "ADDITIONAL_INFO_REQUIRED";
+  } else if (
+    !isAdminNote &&
+    user.role !== "ADMIN" &&
+    ticket.status === "ADDITIONAL_INFO_REQUIRED"
+  ) {
+    // Employee submitted info → move back to under review
+    updateData.status = "UNDER_REVIEW";
+    updateData.activityLog = [
+      ...oldLog,
+      logEntry,
+      {
+        id: uid(),
+        action: `تغيير الحالة: "يحتاج معلومات إضافية" → "قيد المراجعة" (تلقائي بعد رد الموظف)`,
+        performedBy: user.name,
+        performedByRole: "employee",
+        createdAt: new Date().toISOString(),
+      },
+    ];
+  }
 
   const updated = await prisma.supportTicket.update({
     where: { id: req.params.id },
@@ -404,6 +456,7 @@ router.post("/tickets/:id/comments", requireSupportAuth, async (req: SupportAuth
   });
 
   if (isInfoRequest) notifyInfoRequested(updated, content).catch(e => console.error("[Telegram] notifyInfoRequested error:", e));
+  else if (updateData.status === "UNDER_REVIEW") notifyStatusChanged(updated, "UNDER_REVIEW", user.name).catch(e => console.error("[Telegram] notifyStatusChanged error:", e));
   return res.json(formatTicket(updated));
 });
 

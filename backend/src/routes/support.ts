@@ -227,6 +227,48 @@ router.post("/settings/telegram/test", requireAuth, requireAdmin, async (req: Re
   return res.json(result);
 });
 
+// ── GET /api/support/public/:id  (no auth — customer tracking) ───────────────
+router.get("/public/:id", async (req: Request, res: Response) => {
+  const ticket = await prisma.supportTicket.findFirst({
+    where: { id: req.params.id },
+  });
+  if (!ticket) return res.status(404).json({ error: "التذكرة غير موجودة" });
+
+  const comments = ((ticket.comments as any[]) || [])
+    .filter((c: any) => !c.isAdminNote && !c.isInfoRequest)
+    .map((c: any) => ({
+      id:         c.id,
+      authorName: c.authorName,
+      authorRole: c.authorRole,
+      content:    c.content,
+      createdAt:  c.createdAt,
+    }));
+
+  const activityLog = ((ticket.activityLog as any[]) || [])
+    .filter((a: any) => !a.action.includes("ملاحظة داخلية") && !a.action.includes("معلومات إضافية"))
+    .map((a: any) => ({
+      id:          a.id,
+      action:      a.action,
+      performedBy: a.performedBy,
+      details:     a.details,
+      createdAt:   a.createdAt,
+    }));
+
+  return res.json({
+    id:               ticket.id,
+    requestNumber:    ticket.requestNumber,
+    productType:      ticket.productType,
+    category:         ticket.category,
+    status:           ticket.status,
+    priority:         ticket.priority,
+    customerNotified: ticket.customerNotified,
+    createdAt:        ticket.createdAt.toISOString(),
+    updatedAt:        ticket.updatedAt.toISOString(),
+    comments,
+    activityLog,
+  });
+});
+
 // ── POST /api/support/upload-image ───────────────────────────────────────────
 router.post("/upload-image", requireSupportAuth, async (req: SupportAuthRequest, res: Response) => {
   try {
@@ -251,7 +293,7 @@ router.post("/upload-image", requireSupportAuth, async (req: SupportAuthRequest,
 // ── GET /api/support/tickets ──────────────────────────────────────────────────
 router.get("/tickets", requireSupportAuth, async (req: SupportAuthRequest, res: Response) => {
   const user = req.supportUser!;
-  const where = user.role === "ADMIN" ? {} : { employeeId: user.id };
+  const where = {}; // all employees can see all tickets
   const tickets = await prisma.supportTicket.findMany({
     where,
     orderBy: { updatedAt: "desc" },
@@ -456,7 +498,6 @@ router.post("/tickets/:id/comments", requireSupportAuth, async (req: SupportAuth
   });
 
   if (isInfoRequest) notifyInfoRequested(updated, content).catch(e => console.error("[Telegram] notifyInfoRequested error:", e));
-  else if (updateData.status === "UNDER_REVIEW") notifyStatusChanged(updated, "UNDER_REVIEW", user.name).catch(e => console.error("[Telegram] notifyStatusChanged error:", e));
   return res.json(formatTicket(updated));
 });
 

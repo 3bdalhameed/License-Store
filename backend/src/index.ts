@@ -14,7 +14,6 @@ import { syncKeysFromSheet } from "./services/sheetsSync";
 import { AuthRequest, requireAuth } from "./middleware/auth";
 import { requireAdmin } from "./middleware/adminOnly";
 import { Response } from "express";
-import { prisma } from "./lib/prisma";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -55,23 +54,6 @@ app.post(
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
-// ── Auto-delete orders older than 30 days ──
-async function cleanupOldOrders() {
-  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  try {
-    const [o, m] = await Promise.all([
-      prisma.order.deleteMany({ where: { createdAt: { lt: cutoff } } }),
-      prisma.manualOrder.deleteMany({ where: { createdAt: { lt: cutoff } } }),
-    ]);
-    if (o.count + m.count > 0)
-      console.log(`🗑 Deleted ${o.count} orders + ${m.count} manual orders older than 30 days`);
-  } catch (err) {
-    console.error("Order cleanup error:", err);
-  }
-}
-// Run once after 1 hour on startup (not immediately, to avoid deleting on every nodemon restart)
-setTimeout(cleanupOldOrders, 60 * 60 * 1000);
-setInterval(cleanupOldOrders, 24 * 60 * 60 * 1000);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);

@@ -114,6 +114,9 @@ export async function notifyStatusChanged(ticket: {
   id: string; requestNumber: string; activationEmail: string;
   productType: string; employeeId: string; updatedAt: Date;
 }, newStatus: string, changedBy: string): Promise<void> {
+  // Only notify employee for these two statuses
+  if (newStatus !== "RESOLVED" && newStatus !== "ADDITIONAL_INFO_REQUIRED") return;
+
   const { botToken } = await getTgConfig();
   if (!botToken) { console.log("[Telegram] notifyStatusChanged skipped — no botToken"); return; }
 

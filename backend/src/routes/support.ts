@@ -9,7 +9,6 @@ import {
   notifyNewTicket, notifyStatusChanged, notifyInfoRequested,
   saveTgConfig, getTgConfig, sendTgMessage,
 } from "../services/supportTelegram";
-import { uploadImageToDrive } from "../services/googleDrive";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET!;
@@ -269,26 +268,6 @@ router.get("/public/:id", async (req: Request, res: Response) => {
   });
 });
 
-// ── POST /api/support/upload-image ───────────────────────────────────────────
-router.post("/upload-image", requireSupportAuth, async (req: SupportAuthRequest, res: Response) => {
-  try {
-    const { filename, mimeType, data } = z.object({
-      filename: z.string().min(1),
-      mimeType: z.string().startsWith("image/"),
-      data:     z.string().min(1),
-    }).parse(req.body);
-
-    if (!process.env.GOOGLE_DRIVE_FOLDER_ID) {
-      return res.status(503).json({ error: "Google Drive غير مهيأ — أضف GOOGLE_DRIVE_FOLDER_ID في .env" });
-    }
-
-    const result = await uploadImageToDrive(filename, mimeType, data);
-    return res.json(result);
-  } catch (err: any) {
-    console.error("[Drive] upload error:", err?.message || err);
-    return res.status(500).json({ error: "فشل رفع الصورة إلى Google Drive" });
-  }
-});
 
 // ── GET /api/support/tickets ──────────────────────────────────────────────────
 router.get("/tickets", requireSupportAuth, async (req: SupportAuthRequest, res: Response) => {

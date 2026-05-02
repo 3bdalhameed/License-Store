@@ -57,6 +57,7 @@ export default function DashboardPage() {
   const [purchaseNote, setPurchaseNote] = useState("");
   const [manualQty, setManualQty] = useState(1);
   const [productSearch, setProductSearch] = useState("");
+  const [orderSearch, setOrderSearch] = useState("");
   const sliderRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const dragState = useRef<{ id: string; startX: number; scrollLeft: number; dragging: boolean } | null>(null);
   const hasDragged = useRef(false);
@@ -427,8 +428,15 @@ export default function DashboardPage() {
 
         {/* ── Orders tab ── */}
         {tab === "orders" && (() => {
-          const inProgressOrders = allOrders.filter(o => o.type === "manual" && ((o as any).status === "PENDING" || (o as any).status === "IN_PROGRESS"));
-          const doneOrders = allOrders.filter(o => o.type === "key" || (o.type === "manual" && ((o as any).status === "COMPLETED" || (o as any).status === "REJECTED")));
+          const searchTrimmed = orderSearch.trim();
+          const filteredAll = searchTrimmed
+            ? allOrders.filter(o => {
+                const num = orderDisplayNumber(o);
+                return num != null && String(num).includes(searchTrimmed);
+              })
+            : allOrders;
+          const inProgressOrders = filteredAll.filter(o => o.type === "manual" && ((o as any).status === "PENDING" || (o as any).status === "IN_PROGRESS"));
+          const doneOrders = filteredAll.filter(o => o.type === "key" || (o.type === "manual" && ((o as any).status === "COMPLETED" || (o as any).status === "REJECTED")));
 
           const renderManualOrder = (mo: typeof manualOrders[0]) => {
             const st = STATUS_MAP[mo.status];
@@ -509,6 +517,23 @@ export default function DashboardPage() {
 
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              {/* Order search */}
+              <div style={{ position: "relative" as const }}>
+                <span style={{ position: "absolute" as const, right: "0.85rem", top: "50%", transform: "translateY(-50%)", fontSize: "1rem", pointerEvents: "none" }}>🔍</span>
+                <input
+                  value={orderSearch}
+                  onChange={e => setOrderSearch(e.target.value)}
+                  placeholder="ابحث برقم الطلب..."
+                  inputMode="numeric"
+                  style={{ width: "100%", padding: "0.75rem 2.5rem 0.75rem 2.5rem", background: "#fff", border: "1.5px solid rgba(112,45,255,0.2)", borderRadius: 14, color: "#111", fontSize: "0.9rem", outline: "none", fontFamily: "Tajawal, sans-serif", boxSizing: "border-box" as const, boxShadow: "0 2px 12px rgba(112,45,255,0.07)" }}
+                  onFocus={e => e.target.style.borderColor = "#702dff"}
+                  onBlur={e => e.target.style.borderColor = "rgba(112,45,255,0.2)"}
+                />
+                {orderSearch && (
+                  <button onClick={() => setOrderSearch("")} style={{ position: "absolute" as const, left: "0.85rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: "1.1rem", lineHeight: 1 }}>×</button>
+                )}
+              </div>
+
               {/* 30-day deletion notice */}
               <div style={{ background: "#fffbeb", border: "1.5px solid #fcd34d", borderRadius: 14, padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: "0.6rem", fontSize: "0.8rem", color: "#92400e" }}>
                 <span style={{ fontSize: "1rem", flexShrink: 0 }}>⚠️</span>
@@ -516,6 +541,7 @@ export default function DashboardPage() {
               </div>
 
               {allOrders.length === 0 && <div style={{ textAlign: "center", padding: "3rem", color: "#9ca3af", background: "#fff", borderRadius: 16 }}>لا توجد طلبات بعد.</div>}
+              {allOrders.length > 0 && searchTrimmed && filteredAll.length === 0 && <div style={{ textAlign: "center", padding: "3rem", color: "#9ca3af", background: "#fff", borderRadius: 16 }}>لا توجد نتائج لرقم الطلب &ldquo;{orderSearch}&rdquo;</div>}
 
               {/* ── In-progress section ── */}
               {inProgressOrders.length > 0 && (

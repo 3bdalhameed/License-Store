@@ -223,9 +223,6 @@ export const createSupportTicket = (data: {
   assignedTo?: string;
 }) => apiSupport.post("/api/support/tickets", data);
 
-export const uploadSupportImage = (filename: string, mimeType: string, data: string) =>
-  apiSupport.post("/api/support/upload-image", { filename, mimeType, data });
-
 export const getSupportTicket = (id: string) =>
   apiSupport.get(`/api/support/tickets/${id}`);
 

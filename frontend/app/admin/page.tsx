@@ -65,6 +65,8 @@ export default function AdminPage() {
   const [editCustomerId, setEditCustomerId] = useState<string | null>(null); const [editCustomerName, setEditCustomerName] = useState(""); const [editCustomerEmail, setEditCustomerEmail] = useState(""); const [editCustomerPassword, setEditCustomerPassword] = useState(""); const [editCustomerAllowDebt, setEditCustomerAllowDebt] = useState(false); const [savingCustomer, setSavingCustomer] = useState(false); const [editCustomerError, setEditCustomerError] = useState<string | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
+  const [orderSearch, setOrderSearch] = useState("");
+  const [manualOrderSearch, setManualOrderSearch] = useState("");
   const [completeOrderId, setCompleteOrderId] = useState<string | null>(null);
   const [resultDetails, setResultDetails] = useState(""); const [completing, setCompleting] = useState(false);
   const [rejectOrderId, setRejectOrderId] = useState<string | null>(null);
@@ -799,8 +801,30 @@ export default function AdminPage() {
                 </button>
               </div>
             )}
+            {/* Order search */}
+            <div style={{ position: "relative" as const }}>
+              <span style={{ position: "absolute" as const, right: "0.85rem", top: "50%", transform: "translateY(-50%)", fontSize: "1rem", pointerEvents: "none" }}>🔍</span>
+              <input
+                value={orderSearch}
+                onChange={e => setOrderSearch(e.target.value)}
+                placeholder="ابحث برقم الطلب..."
+                inputMode="numeric"
+                style={{ width: "100%", padding: "0.75rem 2.5rem 0.75rem 2.5rem", background: "#fff", border: "1.5px solid rgba(112,45,255,0.2)", borderRadius: 14, color: "#111", fontSize: "0.9rem", outline: "none", fontFamily: "Tajawal, sans-serif", boxSizing: "border-box" as const, boxShadow: "0 2px 12px rgba(112,45,255,0.07)" }}
+                onFocus={e => e.target.style.borderColor = "#702dff"}
+                onBlur={e => e.target.style.borderColor = "rgba(112,45,255,0.2)"}
+              />
+              {orderSearch && (
+                <button onClick={() => setOrderSearch("")} style={{ position: "absolute" as const, left: "0.85rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: "1.1rem", lineHeight: 1 }}>×</button>
+              )}
+            </div>
             {orders.length === 0 && <div style={{ ...card, padding: "2rem", textAlign: "center", color: "#9ca3af" }}>لا توجد طلبات</div>}
-            {orders.map(o => (
+            {(() => {
+              const filtered = orderSearch.trim()
+                ? orders.filter(o => orderNum(o) != null && String(orderNum(o)).includes(orderSearch.trim()))
+                : orders;
+              if (orders.length > 0 && orderSearch.trim() && filtered.length === 0)
+                return <div style={{ ...card, padding: "2rem", textAlign: "center", color: "#9ca3af" }}>لا توجد نتائج لرقم الطلب &ldquo;{orderSearch}&rdquo;</div>;
+              return filtered.map(o => (
               <div key={o.id} style={{ ...card, padding: "1rem" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
@@ -812,7 +836,8 @@ export default function AdminPage() {
                 <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.5rem" }}>{o.user.name} · {new Date(o.createdAt).toLocaleDateString("ar-EG")}</div>
                 <code style={{ display: "block", background: "#f5f4ff", color: "#702dff", padding: "0.5rem 0.75rem", borderRadius: 8, fontSize: "0.78rem", wordBreak: "break-all" as const }}>{o.licenseKey.key}</code>
               </div>
-            ))}
+            ));
+            })()}
           </div>
         )}
 
@@ -1072,13 +1097,35 @@ export default function AdminPage() {
                 </button>
               </div>
             )}
+            {/* Manual order search */}
+            <div style={{ position: "relative" as const }}>
+              <span style={{ position: "absolute" as const, right: "0.85rem", top: "50%", transform: "translateY(-50%)", fontSize: "1rem", pointerEvents: "none" }}>🔍</span>
+              <input
+                value={manualOrderSearch}
+                onChange={e => setManualOrderSearch(e.target.value)}
+                placeholder="ابحث برقم الطلب..."
+                inputMode="numeric"
+                style={{ width: "100%", padding: "0.75rem 2.5rem 0.75rem 2.5rem", background: "#fff", border: "1.5px solid rgba(112,45,255,0.2)", borderRadius: 14, color: "#111", fontSize: "0.9rem", outline: "none", fontFamily: "Tajawal, sans-serif", boxSizing: "border-box" as const, boxShadow: "0 2px 12px rgba(112,45,255,0.07)" }}
+                onFocus={e => e.target.style.borderColor = "#702dff"}
+                onBlur={e => e.target.style.borderColor = "rgba(112,45,255,0.2)"}
+              />
+              {manualOrderSearch && (
+                <button onClick={() => setManualOrderSearch("")} style={{ position: "absolute" as const, left: "0.85rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: "1.1rem", lineHeight: 1 }}>×</button>
+              )}
+            </div>
             {manualOrders.length === 0 && (
               <div style={{ ...card, padding: "2rem", textAlign: "center", color: "#9ca3af" }}>
                 <Clock style={{ width: 32, height: 32, margin: "0 auto 0.5rem", opacity: 0.3 }} />
                 <p>لا توجد طلبات تفعيل يدوي</p>
               </div>
             )}
-            {manualOrders.map(o => (
+            {(() => {
+              const filtered = manualOrderSearch.trim()
+                ? manualOrders.filter(o => orderNum(o) != null && String(orderNum(o)).includes(manualOrderSearch.trim()))
+                : manualOrders;
+              if (manualOrders.length > 0 && manualOrderSearch.trim() && filtered.length === 0)
+                return <div style={{ ...card, padding: "2rem", textAlign: "center", color: "#9ca3af" }}>لا توجد نتائج لرقم الطلب &ldquo;{manualOrderSearch}&rdquo;</div>;
+              return filtered.map(o => (
               <div key={o.id} style={{ ...card, padding: "1rem" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "0.5rem", gap: "0.5rem" }}>
                   <div style={{ flex: 1 }}>
@@ -1145,7 +1192,8 @@ export default function AdminPage() {
                   </form>
                 )}
               </div>
-            ))}
+            ));
+            })()}
           </div>
         )}
       </div>

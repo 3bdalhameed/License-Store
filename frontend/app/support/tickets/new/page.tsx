@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { TicketCategory, TicketPriority, CATEGORY_CONFIG, PRIORITY_CONFIG } from "../../types";
 import { getSupportUser, clearSupportSession } from "../../auth";
-import { createSupportTicket, uploadSupportImage } from "@/lib/api";
+import { createSupportTicket } from "@/lib/api";
 
 const PURPLE = "#702dff";
 const inp: React.CSSProperties = {
@@ -42,7 +42,6 @@ export default function NewTicketPage() {
 
   // Media: direct uploads
   const [attachments, setAttachments] = useState<{ id: string; name: string; dataUrl: string; size: number; isDriveUrl?: boolean }[]>([]);
-  const [uploadingImage, setUploadingImage] = useState(false);
   // Media: video links only
   const [mediaLinks,    setMediaLinks]    = useState<string[]>([]);
   const [linkInputVal,  setLinkInputVal]  = useState("");
@@ -65,24 +64,10 @@ export default function NewTicketPage() {
     Array.from(files).forEach(file => {
       if (!file.type.startsWith("image/")) return;
       const reader = new FileReader();
-      reader.onload = async e => {
+      reader.onload = e => {
         const dataUrl = e.target?.result as string;
         const tempId = Math.random().toString(36).slice(2);
-        // Show preview immediately with base64
         setAttachments(prev => [...prev, { id: tempId, name: file.name, dataUrl, size: file.size }]);
-        // Then upload to Google Drive in the background
-        setUploadingImage(true);
-        try {
-          const res = await uploadSupportImage(file.name, file.type, dataUrl);
-          const { viewUrl } = res.data;
-          setAttachments(prev => prev.map(a =>
-            a.id === tempId ? { ...a, dataUrl: viewUrl, isDriveUrl: true } : a
-          ));
-        } catch {
-          // Keep base64 as fallback if Drive upload fails
-        } finally {
-          setUploadingImage(false);
-        }
       };
       reader.readAsDataURL(file);
     });
@@ -403,12 +388,6 @@ export default function NewTicketPage() {
               <p style={{ fontSize: "0.72rem", color: "#9ca3af", marginTop: "0.15rem" }}>PNG, JPG, WEBP — يمكن رفع عدة صور</p>
             </div>
 
-            {uploadingImage && (
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.6rem", fontFamily: "Tajawal,sans-serif", fontSize: "0.78rem", color: "#702dff" }}>
-                <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
-                جارٍ رفع الصور إلى Google Drive…
-              </div>
-            )}
             {attachments.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.65rem", marginTop: "0.85rem" }}>
                 {attachments.map(a => (

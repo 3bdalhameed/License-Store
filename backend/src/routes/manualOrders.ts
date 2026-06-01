@@ -110,7 +110,8 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
         user.email,
         user.name,
         product.name,
-        emails
+        emails,
+        manualOrder.globalOrderNumber ?? undefined
       );
     } catch (emailErr) {
       console.error("Confirmation email failed (non-fatal):", emailErr);
@@ -120,6 +121,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       await sendTelegramMessage(
         `🛒 <b>طلب تفعيل يدوي جديد!</b>\n\n` +
+        `🔢 رقم الطلب: <b>#${manualOrder.globalOrderNumber}</b>\n` +
         `👤 العميل: <b>${user.name}</b> (${user.email})\n` +
         `📦 المنتج: <b>${product.name}</b>\n` +
         (product.requiresEmail !== false ? `📧 الإيميلات: <b>${emails.join(", ")}</b>\n` : "") +
@@ -220,6 +222,8 @@ router.patch(
         },
       });
 
+      const orderNum = (order as any).globalOrderNumber ?? undefined;
+
       // Send rejection email
       if (status === "REJECTED") {
         try {
@@ -228,7 +232,8 @@ router.patch(
             order.user.name,
             order.product.name,
             rejectReason || "لم يتم ذكر سبب",
-            order.creditsCost
+            order.creditsCost,
+            orderNum
           );
         } catch (emailErr) {
           console.error("Rejection email failed (non-fatal):", emailErr);
@@ -241,7 +246,8 @@ router.patch(
           await sendOrderInProgressEmail(
             order.user.email,
             order.user.name,
-            order.product.name
+            order.product.name,
+            orderNum
           );
         } catch (emailErr) {
           console.error("In-progress email failed (non-fatal):", emailErr);
@@ -255,7 +261,8 @@ router.patch(
             order.user.email,
             order.user.name,
             order.product.name,
-            resultDetails
+            resultDetails,
+            orderNum
           );
         } catch (emailErr) {
           console.error("Completion email failed (non-fatal):", emailErr);

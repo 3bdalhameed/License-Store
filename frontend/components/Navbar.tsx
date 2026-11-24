@@ -92,14 +92,9 @@ export default function Navbar({ userName, credits, isAdmin }: NavbarProps) {
           </a>
 
           {isAdmin && (
-            <>
-              <span style={{ background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", color: "#fff", fontSize: "0.7rem", fontWeight: 700, padding: "0.25rem 0.75rem", borderRadius: 20 }}>
-                ADMIN
-              </span>
-              <a href="/support" style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.3)", borderRadius: 8, padding: "0.4rem 0.75rem", color: "#fff", textDecoration: "none", fontSize: "0.8rem", fontWeight: 700, fontFamily: "Tajawal, sans-serif" }}>
-                🎫 نظام الدعم
-              </a>
-            </>
+            <span style={{ background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", color: "#fff", fontSize: "0.7rem", fontWeight: 700, padding: "0.25rem 0.75rem", borderRadius: 20 }}>
+              ADMIN
+            </span>
           )}
           {credits !== undefined && (
             <div style={{ background: credits < 0 ? "rgba(255,60,60,0.25)" : "rgba(255,255,255,0.15)", border: `1.5px solid ${credits < 0 ? "rgba(255,100,100,0.5)" : "rgba(255,255,255,0.3)"}`, borderRadius: 20, padding: "0.3rem 0.9rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
@@ -163,11 +158,6 @@ export default function Navbar({ userName, credits, isAdmin }: NavbarProps) {
             <div style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.875rem" }}>
               💰 رصيدك: <strong style={{ color: credits < 0 ? '#fca5a5' : 'inherit' }}>${credits} رصيد {credits < 0 ? '⚠️ رصيد سلبي' : ''}</strong>
             </div>
-          )}
-          {isAdmin && (
-            <a href="/support" style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.3)", borderRadius: 10, padding: "0.75rem 1rem", color: "#fff", textDecoration: "none", fontSize: "0.875rem", fontWeight: 700, fontFamily: "Tajawal, sans-serif" }}>
-              🎫 نظام دعم العملاء
-            </a>
           )}
           <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" style={{
             display: "flex", alignItems: "center", gap: "0.5rem",

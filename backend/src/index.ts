@@ -9,7 +9,6 @@ import adminRoutes from "./routes/admin";
 import productRoutes from "./routes/products";
 import orderRoutes from "./routes/orders";
 import manualOrderRoutes from "./routes/manualOrders";
-import supportRoutes from "./routes/support";
 import { syncKeysFromSheet } from "./services/sheetsSync";
 import { AuthRequest, requireAuth } from "./middleware/auth";
 import { requireAdmin } from "./middleware/adminOnly";
@@ -35,7 +34,6 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/manual-orders", manualOrderRoutes);
-app.use("/api/support", supportRoutes);
 
 app.post(
   "/api/admin/sync-sheets",

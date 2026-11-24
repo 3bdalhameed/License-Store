@@ -145,7 +145,7 @@ export default function AdminPage() {
   };
 
   const handleDeleteProduct = async (id: string, name: string) => {
-    if (!confirm(`حذف المنتج "${name}"؟ سيتم حذف جميع المفاتيح والطلبات المرتبطة به.`)) return;
+    if (!confirm(`حذف المنتج "${name}"؟ سيختفي من المتجر، وتبقى جميع الطلبات السابقة عليه محفوظة.`)) return;
     setDeletingProductId(id);
     try {
       await deleteProduct(id);

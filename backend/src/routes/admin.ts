@@ -427,12 +427,28 @@ router.delete("/products/:id", async (req: AuthRequest, res: Response) => {
   try {
     const product = await prisma.product.findUnique({ where: { id: req.params.id } });
     if (!product) return res.status(404).json({ error: "Product not found" });
-    // Delete related data first
-    await prisma.manualOrder.deleteMany({ where: { productId: req.params.id } });
-    await prisma.order.deleteMany({ where: { productId: req.params.id } });
-    await prisma.licenseKey.deleteMany({ where: { productId: req.params.id } });
-    await prisma.product.delete({ where: { id: req.params.id } });
-    return res.json({ success: true });
+    const id = req.params.id;
+    const [orderCount, manualOrderCount] = await Promise.all([
+      prisma.order.count({ where: { productId: id } }),
+      prisma.manualOrder.count({ where: { productId: id } }),
+    ]);
+
+    // Product has order history → never delete orders. Archive the product instead:
+    // hide it from the store, zero its stock and drop only its unsold keys.
+    if (orderCount + manualOrderCount > 0) {
+      await prisma.$transaction([
+        prisma.licenseKey.deleteMany({ where: { productId: id, status: "UNUSED", order: null } }),
+        prisma.product.update({ where: { id }, data: { isActive: false, manualStock: 0 } }),
+      ]);
+      return res.json({ success: true, archived: true });
+    }
+
+    // No orders ever → safe to remove completely
+    await prisma.$transaction([
+      prisma.licenseKey.deleteMany({ where: { productId: id } }),
+      prisma.product.delete({ where: { id } }),
+    ]);
+    return res.json({ success: true, archived: false });
   } catch (err) {
     return res.status(500).json({ error: "Server error" });
   }

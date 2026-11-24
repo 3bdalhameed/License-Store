@@ -110,6 +110,7 @@ export const syncKeysFromSheet = async (): Promise<{ imported: number; skipped: 
 
       let product = await prisma.product.findFirst({
         where: { name: { equals: productName, mode: "insensitive" } },
+        orderBy: { isActive: "desc" }, // prefer a live product over an archived one
       });
 
       if (!product) {

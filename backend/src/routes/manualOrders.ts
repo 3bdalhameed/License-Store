@@ -278,4 +278,57 @@ router.patch(
   }
 );
 
+// ── Admin: edit delivery details of a completed order ────────────────────────
+router.patch(
+  "/admin/:id/details",
+  requireAuth,
+  requireAdmin,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const schema = z.object({
+        resultDetails: z.string().trim().min(1, "أدخل تفاصيل التفعيل"),
+        notify: z.boolean().optional().default(false),
+      });
+      const { resultDetails, notify } = schema.parse(req.body);
+
+      const order = await prisma.manualOrder.findUnique({
+        where: { id: req.params.id },
+        include: {
+          user: { select: { email: true, name: true } },
+          product: { select: { name: true } },
+        },
+      });
+      if (!order) return res.status(404).json({ error: "Order not found" });
+      if (order.status !== "COMPLETED")
+        return res.status(400).json({ error: "يمكن تعديل تفاصيل الطلبات المكتملة فقط" });
+
+      const updated = await prisma.manualOrder.update({
+        where: { id: req.params.id },
+        data: { resultDetails },
+      });
+
+      if (notify) {
+        try {
+          await sendOrderCompletedEmail(
+            order.user.email,
+            order.user.name,
+            order.product.name,
+            resultDetails,
+            order.globalOrderNumber ?? undefined,
+            true
+          );
+        } catch (emailErr) {
+          console.error("Updated details email failed (non-fatal):", emailErr);
+        }
+      }
+
+      return res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError)
+        return res.status(400).json({ error: err.errors[0]?.message || "بيانات غير صحيحة" });
+      return res.status(500).json({ error: "Server error" });
+    }
+  }
+);
+
 export default router;

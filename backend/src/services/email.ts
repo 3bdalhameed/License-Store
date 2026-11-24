@@ -49,18 +49,19 @@ export const sendOrderCompletedEmail = async (
   customerName: string,
   productName: string,
   resultDetails: string,
-  orderNumber?: number
+  orderNumber?: number,
+  isUpdate = false
 ): Promise<void> => {
   try {
     await resend.emails.send({
       from: `ديجيتال بلس <${FROM}>`,
       to,
-      subject: `🎉 تم تفعيل طلبك — ${productName}`,
+      subject: isUpdate ? `✏️ تم تحديث تفاصيل طلبك — ${productName}` : `🎉 تم تفعيل طلبك — ${productName}`,
       html: `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 2rem; background: #f9f9f9; border-radius: 12px;">
           ${header}
           <h2 style="color: #090040;">مرحباً ${customerName}،</h2>
-          <p style="color: #374151; line-height: 1.8;">🎉 تم تفعيل طلبك بنجاح! إليك تفاصيل التفعيل:</p>
+          <p style="color: #374151; line-height: 1.8;">${isUpdate ? "✏️ تم تحديث تفاصيل التفعيل الخاصة بطلبك. إليك التفاصيل الجديدة:" : "🎉 تم تفعيل طلبك بنجاح! إليك تفاصيل التفعيل:"}</p>
           <div style="background: #fff; border: 2px solid #702dff; border-radius: 10px; padding: 1.25rem 1.5rem; margin: 1rem 0;">
             ${orderNumber ? `<p style="margin: 0 0 0.5rem; color: #9ca3af; font-size: 0.8rem;">رقم الطلب: <strong style="color: #702dff; font-family: monospace;">#${orderNumber}</strong></p>` : ""}
             <strong style="color: #702dff; font-size: 1rem;">📦 ${productName}</strong>
@@ -73,7 +74,7 @@ export const sendOrderCompletedEmail = async (
         </div>
       `,
     });
-    console.log(`📧 Completion email sent to ${to}`);
+    console.log(`📧 ${isUpdate ? "Updated details" : "Completion"} email sent to ${to}`);
   } catch (err) {
     console.error("Failed to send completion email:", err);
   }

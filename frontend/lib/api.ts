@@ -122,6 +122,9 @@ export const updateManualOrder = (
   rejectReason?: string
 ) => api.patch(`/api/manual-orders/admin/${id}`, { status, resultDetails, rejectReason });
 
+export const updateManualOrderDetails = (id: string, resultDetails: string, notify: boolean) =>
+  api.patch(`/api/manual-orders/admin/${id}/details`, { resultDetails, notify });
+
 export const toggleManualProduct = (id: string) =>
   api.patch(`/api/admin/products/${id}/toggle-manual`);
 

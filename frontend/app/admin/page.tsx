@@ -5,7 +5,7 @@ import * as XLSX from "xlsx";
 import { useRouter } from "next/navigation";
 import {
   getMe, getCustomers, createCustomer, deleteCustomer, adjustCredits, getAllOrders,
-  syncSheets, createProduct, getProducts, addKeys, getAllManualOrders, updateManualOrder,
+  syncSheets, createProduct, getProducts, addKeys, getAllManualOrders, updateManualOrder, updateManualOrderDetails,
   toggleManualProduct, updateProductPrice, addManualStock, getAdminStats,
   getPendingRegistrations, approveRegistration, rejectRegistration, updateProductInstructions,
   getCategories, createCategory, deleteCategory, updateProductCategory, reorderProducts,
@@ -69,6 +69,7 @@ export default function AdminPage() {
   const [manualOrderSearch, setManualOrderSearch] = useState("");
   const [completeOrderId, setCompleteOrderId] = useState<string | null>(null);
   const [resultDetails, setResultDetails] = useState(""); const [completing, setCompleting] = useState(false);
+  const [editDetailsId, setEditDetailsId] = useState<string | null>(null); const [editDetailsVal, setEditDetailsVal] = useState(""); const [editDetailsNotify, setEditDetailsNotify] = useState(true); const [savingDetails, setSavingDetails] = useState(false);
   const [rejectOrderId, setRejectOrderId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState(""); const [rejecting, setRejecting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -361,6 +362,16 @@ export default function AdminPage() {
       setManualOrders((await getAllManualOrders()).data);
     } catch (err: any) { setError(err.response?.data?.error || "فشل"); }
     finally { setCompleting(false); }
+  };
+
+  const handleSaveDetails = async (e: React.FormEvent, orderId: string) => {
+    e.preventDefault(); setSavingDetails(true);
+    try {
+      await updateManualOrderDetails(orderId, editDetailsVal, editDetailsNotify);
+      setEditDetailsId(null); setEditDetailsVal("");
+      setManualOrders((await getAllManualOrders()).data);
+    } catch (err: any) { setError(err.response?.data?.error || "فشل"); }
+    finally { setSavingDetails(false); }
   };
 
   const handleRejectOrder = async (e: React.FormEvent, orderId: string) => {
@@ -1153,6 +1164,26 @@ export default function AdminPage() {
                     <div style={{ fontSize: "0.75rem", fontWeight: 700, color: o.status === "REJECTED" ? "#dc2626" : "#16a34a", marginBottom: "0.2rem" }}>{o.status === "REJECTED" ? "سبب الرفض:" : "تفاصيل التفعيل:"}</div>
                     <pre style={{ fontSize: "0.8rem", color: "#090040", whiteSpace: "pre-wrap" as const, fontFamily: "inherit", margin: 0 }}>{o.resultDetails}</pre>
                   </div>
+                )}
+
+                {o.status === "COMPLETED" && editDetailsId !== o.id && (
+                  <button onClick={() => { setEditDetailsId(o.id); setEditDetailsVal(o.resultDetails ?? ""); setEditDetailsNotify(true); }} style={{ background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.3)", color: "#702dff", borderRadius: 8, padding: "0.5rem 0.85rem", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", fontFamily: "Tajawal, sans-serif" }}>
+                    ✏️ تعديل تفاصيل التسليم
+                  </button>
+                )}
+
+                {editDetailsId === o.id && (
+                  <form onSubmit={e => handleSaveDetails(e, o.id)} style={{ marginTop: "0.25rem", display: "flex", flexDirection: "column" as const, gap: "0.5rem" }}>
+                    <textarea value={editDetailsVal} onChange={e => setEditDetailsVal(e.target.value)} required rows={4} placeholder="تفاصيل التفعيل..." style={{ ...inp, resize: "none" as const }} />
+                    <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8rem", color: "#374151", fontFamily: "Tajawal, sans-serif", cursor: "pointer" }}>
+                      <input type="checkbox" checked={editDetailsNotify} onChange={e => setEditDetailsNotify(e.target.checked)} />
+                      إرسال إيميل للعميل بالتفاصيل الجديدة
+                    </label>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button type="submit" disabled={savingDetails} style={{ ...btnP, flex: 1 }}>{savingDetails ? <Loader2 style={{ width: 13, height: 13, animation: "spin 1s linear infinite" }} /> : <Check style={{ width: 13, height: 13 }} />}{savingDetails ? "جاري..." : "حفظ التعديل"}</button>
+                      <button type="button" onClick={() => setEditDetailsId(null)} style={{ background: "#f3f4f6", border: "none", borderRadius: 10, padding: "0.65rem 1rem", cursor: "pointer", color: "#6b7280", fontFamily: "Tajawal, sans-serif" }}>إلغاء</button>
+                    </div>
+                  </form>
                 )}
 
                 {o.status !== "COMPLETED" && o.status !== "REJECTED" && (

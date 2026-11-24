@@ -101,7 +101,7 @@ router.post("/customers", async (req: AuthRequest, res: Response) => {
 router.get("/customers", async (_req: AuthRequest, res: Response) => {
   const customers = await prisma.user.findMany({
     where: { role: "CUSTOMER", status: "ACTIVE" },
-    select: { id: true, email: true, name: true, credits: true, allowDebt: true, createdAt: true },
+    select: { id: true, email: true, name: true, phone: true, storeLink: true, credits: true, allowDebt: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
   return res.json(customers);

@@ -18,7 +18,10 @@ import {
   Package, AlertCircle, Check, KeyRound, Zap, Clock, Edit2, BarChart2, UserCheck, FileText, Tag, Eye, EyeOff, Minus, FileDown,
 } from "lucide-react";
 
-interface User { id: string; name: string; email: string; credits: number; allowDebt: boolean; createdAt: string; }
+interface User { id: string; name: string; email: string; phone?: string | null; storeLink?: string | null; credits: number; allowDebt: boolean; createdAt: string; }
+
+// Only render http(s) links as clickable (guards against javascript: URLs)
+const safeHref = (url: string) => (/^https?:\/\//i.test(url.trim()) ? url.trim() : undefined);
 interface PendingUser { id: string; name: string; email: string; phone?: string; storeLink?: string; createdAt: string; }
 interface Order { id: string; orderNumber?: number; globalOrderNumber?: number; createdAt: string; creditsCost: number; user: { name: string; email: string }; product: { name: string }; licenseKey: { key: string }; }
 interface Product { id: string; productNumber?: number; name: string; description?: string; activationInstructions?: string; priceInCredits: number; availableKeys: number; totalSold?: number | null; isManual: boolean; requiresEmail: boolean; isActive: boolean; categoryId?: string | null; categoryName?: string | null; }
@@ -670,7 +673,7 @@ export default function AdminPage() {
                     )}
                     {u.storeLink && (
                       <div style={{ fontSize: "0.75rem", marginTop: "0.15rem" }}>
-                        <a href={u.storeLink} target="_blank" rel="noopener noreferrer" style={{ color: "#702dff", fontWeight: 600, textDecoration: "none", wordBreak: "break-all" as const }}>🔗 {u.storeLink}</a>
+                        <a href={safeHref(u.storeLink)} target="_blank" rel="noopener noreferrer" style={{ color: "#702dff", fontWeight: 600, textDecoration: "none", wordBreak: "break-all" as const }}>🔗 {u.storeLink}</a>
                       </div>
                     )}
                     <div style={{ fontSize: "0.72rem", color: "#9ca3af", marginTop: "0.2rem" }}>{new Date(u.createdAt).toLocaleDateString("ar-EG")}</div>
@@ -743,7 +746,8 @@ export default function AdminPage() {
             {(() => {
               const filtered = customers.filter(c =>
                 c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-                c.email.toLowerCase().includes(customerSearch.toLowerCase())
+                c.email.toLowerCase().includes(customerSearch.toLowerCase()) ||
+                (c.storeLink ?? "").toLowerCase().includes(customerSearch.toLowerCase())
               );
               return <>
                 {filtered.length === 0 && <div style={{ ...card, padding: "2rem", textAlign: "center", color: "#9ca3af" }}>{customerSearch ? `لا نتائج لـ "${customerSearch}"` : "لا يوجد عملاء بعد"}</div>}
@@ -754,6 +758,16 @@ export default function AdminPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#090040" }}>{c.name}</div>
                       <div style={{ color: "#6b7280", fontSize: "0.78rem", marginTop: "0.15rem", wordBreak: "break-all" as const }}>{c.email}</div>
+                      {c.phone && (
+                        <div style={{ fontSize: "0.78rem", marginTop: "0.15rem" }}>
+                          <a href={`https://wa.me/${c.phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={{ color: "#16a34a", fontWeight: 600, textDecoration: "none", fontFamily: "monospace" }}>📱 {c.phone}</a>
+                        </div>
+                      )}
+                      {c.storeLink && (
+                        <div style={{ fontSize: "0.75rem", marginTop: "0.15rem" }}>
+                          <a href={safeHref(c.storeLink)} target="_blank" rel="noopener noreferrer" style={{ color: "#702dff", fontWeight: 600, textDecoration: "none", wordBreak: "break-all" as const }}>🔗 {c.storeLink}</a>
+                        </div>
+                      )}
                       <span style={{ display: "inline-block", marginTop: "0.4rem", background: "#f5f4ff", border: "1px solid rgba(112,45,255,0.2)", color: "#702dff", fontSize: "0.75rem", fontWeight: 700, padding: "0.2rem 0.65rem", borderRadius: 20 }}>${c.credits} رصيد</span>
                     </div>
                     <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0, marginRight: "0.5rem" }}>
